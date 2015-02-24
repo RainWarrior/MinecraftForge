@@ -1,17 +1,21 @@
 package net.minecraftforge.fluids;
 
+import java.util.EnumMap;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Random;
 
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Maps;
 
 import net.minecraft.block.Block;
 import net.minecraft.block.material.Material;
 import net.minecraft.block.properties.IProperty;
+import net.minecraft.block.properties.PropertyBool;
 import net.minecraft.block.properties.PropertyInteger;
 import net.minecraft.block.state.BlockState;
 import net.minecraft.block.state.IBlockState;
+import net.minecraft.client.renderer.BlockFluidRenderer;
 import net.minecraft.entity.Entity;
 import net.minecraft.init.Blocks;
 import net.minecraft.item.Item;
@@ -22,6 +26,9 @@ import net.minecraft.util.EnumWorldBlockLayer;
 import net.minecraft.util.Vec3;
 import net.minecraft.world.IBlockAccess;
 import net.minecraft.world.World;
+import net.minecraftforge.common.property.IExtendedBlockState;
+import net.minecraftforge.common.property.IUnlistedProperty;
+import net.minecraftforge.common.property.PropertyFloat;
 import net.minecraftforge.fml.relauncher.Side;
 import net.minecraftforge.fml.relauncher.SideOnly;
 
@@ -84,6 +91,27 @@ public abstract class BlockFluidBase extends Block implements IFluidBlock
     protected Map<Block, Boolean> displacements = Maps.newHashMap();
 
     public static final PropertyInteger LEVEL = PropertyInteger.create("level", 0, 15);
+    public static final EnumMap<EnumFacing, PropertyBool> RENDER_SIDE = Maps.newEnumMap(EnumFacing.class);
+    public static final PropertyFloat[] LEVEL_CORNERS = new PropertyFloat[4];
+    public static final IProperty[] PROPERTIES;
+
+    static
+    {
+        PROPERTIES = new IProperty[1 + EnumFacing.values().length];
+        PROPERTIES[0] = LEVEL;
+        for(EnumFacing side : EnumFacing.values())
+        {
+            PropertyBool prop = PropertyBool.create("render_" + side.name());
+            RENDER_SIDE.put(side, prop);
+            PROPERTIES[1 + side.ordinal()] = prop;
+        }
+        ImmutableList.Builder<IUnlistedProperty> builder = ImmutableList.builder();
+        for(int i = 0; i < 4; i++)
+        {
+            LEVEL_CORNERS[i] = new PropertyFloat("level_corner_" + i);
+        }
+    }
+
     protected int quantaPerBlock = 8;
     protected float quantaPerBlockFloat = 8F;
     protected int density = 1;
@@ -338,12 +366,6 @@ public abstract class BlockFluidBase extends Block implements IFluidBlock
     }
 
     @Override
-    public int getRenderType()
-    {
-        return FluidRegistry.renderIdFluid;
-    }
-
-    @Override
     public boolean isOpaqueCube()
     {
         return false;
@@ -394,6 +416,25 @@ public abstract class BlockFluidBase extends Block implements IFluidBlock
             return !block.isOpaqueCube();
         }
         return block.getMaterial() == this.getMaterial() ? false : super.shouldSideBeRendered(world, pos, side);
+    }
+
+    @Override
+    @SideOnly(Side.CLIENT) // FIXME
+    public IBlockState getExtendedState(IBlockState oldState, IBlockAccess worldIn, BlockPos pos)
+    {
+        for(EnumFacing side : EnumFacing.values())
+        {
+            oldState = oldState.withProperty(RENDER_SIDE.get(side), shouldSideBeRendered(worldIn, pos.add(side.getDirectionVec()), side));
+        }
+        IExtendedBlockState state = (IExtendedBlockState)oldState;
+        for(int i = 0; i < 2; i++)
+        {
+            for(int j = 0; j < 2; j++)
+            {
+                state = state.withProperty(LEVEL_CORNERS[i * 2 + j], BlockFluidRenderer.getFluidHeightStatic(worldIn, pos.add(i, 0, j), getMaterial()));
+            }
+        }
+        return state;
     }
 
     /* FLUID FUNCTIONS */
