@@ -2,6 +2,7 @@ package net.minecraftforge.event;
 
 import java.io.File;
 import java.util.ArrayList;
+import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
@@ -23,7 +24,10 @@ import net.minecraft.util.DamageSource;
 import net.minecraft.util.EnumFacing;
 import net.minecraft.util.IChatComponent;
 import net.minecraft.util.MovingObjectPosition;
+<<<<<<< HEAD
+=======
 import net.minecraft.util.Vec3;
+>>>>>>> a1f93696cc176126a2598534775ca7137da4ca36
 import net.minecraft.world.Explosion;
 import net.minecraft.world.World;
 import net.minecraft.world.WorldServer;
@@ -32,12 +36,16 @@ import net.minecraft.world.biome.BiomeGenBase;
 import net.minecraft.world.storage.IPlayerFileData;
 import net.minecraft.world.storage.SaveHandler;
 import net.minecraftforge.client.event.ClientChatReceivedEvent;
+<<<<<<< HEAD
+=======
 import net.minecraftforge.common.ForgeHooks;
 import net.minecraftforge.common.IExtendedEntityProperties;
+>>>>>>> a1f93696cc176126a2598534775ca7137da4ca36
 import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.common.util.BlockSnapshot;
 import net.minecraftforge.event.brewing.PotionBrewEvent;
 import net.minecraftforge.event.entity.EntityEvent;
+import net.minecraftforge.event.entity.EntityMountEvent;
 import net.minecraftforge.event.entity.EntityStruckByLightningEvent;
 import net.minecraftforge.event.entity.PlaySoundAtEntityEvent;
 import net.minecraftforge.event.entity.item.ItemExpireEvent;
@@ -62,6 +70,7 @@ import net.minecraftforge.event.entity.player.PlayerUseItemEvent;
 import net.minecraftforge.event.entity.player.PlayerWakeUpEvent;
 import net.minecraftforge.event.entity.player.UseHoeEvent;
 import net.minecraftforge.event.world.BlockEvent;
+import net.minecraftforge.event.world.BlockEvent.NeighborNotifyEvent;
 import net.minecraftforge.event.world.BlockEvent.MultiPlaceEvent;
 import net.minecraftforge.event.world.BlockEvent.PlaceEvent;
 import net.minecraftforge.event.world.ExplosionEvent;
@@ -86,6 +95,13 @@ public class ForgeEventFactory
     {
         IBlockState placedAgainst = blockSnapshot.world.getBlockState(blockSnapshot.pos.offset(direction.getOpposite()));
         PlaceEvent event = new PlaceEvent(blockSnapshot, placedAgainst, player);
+        MinecraftForge.EVENT_BUS.post(event);
+        return event;
+    }
+    
+    public static NeighborNotifyEvent onNeighborNotify(World world, BlockPos pos, IBlockState state, EnumSet<EnumFacing> notifiedSides)
+    {
+        NeighborNotifyEvent event = new NeighborNotifyEvent(world, pos, state, notifiedSides);
         MinecraftForge.EVENT_BUS.post(event);
         return event;
     }
@@ -294,11 +310,22 @@ public class ForgeEventFactory
         return event.canUpdate;
     }
 
+    /**
+     * Use {@link #onPlaySoundAtEntity(Entity,String,float,float)}
+     */
+    @Deprecated
     public static String onPlaySoundAt(Entity entity, String name, float volume, float pitch)
     {
         PlaySoundAtEntityEvent event = new PlaySoundAtEntityEvent(entity, name, volume, pitch);
         MinecraftForge.EVENT_BUS.post(event);
         return event.name;
+    }
+    
+    public static PlaySoundAtEntityEvent onPlaySoundAtEntity(Entity entity, String name, float volume, float pitch)
+    {
+        PlaySoundAtEntityEvent event = new PlaySoundAtEntityEvent(entity, name, volume, pitch);
+        MinecraftForge.EVENT_BUS.post(event);
+        return event;
     }
 
     public static int onItemExpire(EntityItem entity, ItemStack item)
@@ -332,6 +359,19 @@ public class ForgeEventFactory
     {
         return !MinecraftForge.EVENT_BUS.post(new EntityInteractEvent(player, entity));
     }
+    
+    public static boolean canMountEntity(Entity entityMounting, Entity entityBeingMounted, boolean isMounting)
+    {
+        boolean isCanceled = MinecraftForge.EVENT_BUS.post(new EntityMountEvent(entityMounting, entityBeingMounted, entityMounting.worldObj, isMounting));
+        
+        if(isCanceled)
+        {
+            entityMounting.setPositionAndRotation(entityMounting.posX, entityMounting.posY, entityMounting.posZ, entityMounting.prevRotationYaw, entityMounting.prevRotationPitch);
+            return false;
+        }
+        else         
+            return true;       
+    }
 
     public static EnumStatus onPlayerSleepInBed(EntityPlayer player, BlockPos pos)
     {
@@ -354,7 +394,11 @@ public class ForgeEventFactory
     {
         MinecraftForge.EVENT_BUS.post(new net.minecraftforge.event.entity.player.PlayerEvent.Clone(player, oldPlayer, wasDeath));
     }
+<<<<<<< HEAD
+    
+=======
 
+>>>>>>> a1f93696cc176126a2598534775ca7137da4ca36
     public static boolean onExplosionStart(World world, Explosion explosion)
     {
         return MinecraftForge.EVENT_BUS.post(new ExplosionEvent.Start(world, explosion));
@@ -365,12 +409,26 @@ public class ForgeEventFactory
         //Filter entities to only those who are effected, to prevent modders from seeing more then will be hurt.
         /* Enable this if we get issues with modders looping to much.
         Iterator<Entity> itr = list.iterator();
+<<<<<<< HEAD
+<<<<<<< HEAD
+        while (itr.hasNext())
+        {
+            Entity e = itr.next();
+            double dist = e.getDistance(explosion.explosionX, explosion.explosionY, explosion.explosionZ) / diameter;
+            if (dist > 1.0F) itr.remove();
+=======
+=======
+>>>>>>> a1f93696cc176126a2598534775ca7137da4ca36
         Vec3 p = explosion.getPosition();
         while (itr.hasNext())
         {
             Entity e = itr.next();
             double dist = e.getDistance(p.xCoord, p.yCoord, p.zCoord) / diameter;
             if (e.func_180427_aV() || dist > 1.0F) itr.remove();
+<<<<<<< HEAD
+>>>>>>> Added Explosion Start and Detonate events to control explosion.
+=======
+>>>>>>> a1f93696cc176126a2598534775ca7137da4ca36
         }
         */
         MinecraftForge.EVENT_BUS.post(new ExplosionEvent.Detonate(world, explosion, list));
