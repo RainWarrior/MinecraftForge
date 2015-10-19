@@ -269,7 +269,6 @@ public class ModelFluid implements IModelCustomData
                     put(buf, e, x - side.getDirectionVec().getX() * eps, y, z - side.getDirectionVec().getZ() * eps, 1f);
                     break;
                 case COLOR:
-                    // temporarily add diffuse lighting
                     float d = diffuse(side);
                     put(buf, e,
                         d * ((color >> 16) & 0xFF) / 255f,

@@ -1,4 +1,4 @@
-package net.minecraftforge.client.model;
+package net.minecraftforge.client.model.pipeline;
 
 import java.nio.ByteBuffer;
 import java.nio.IntBuffer;
@@ -11,11 +11,15 @@ import net.minecraft.client.renderer.block.model.ItemCameraTransforms;
 import net.minecraft.client.renderer.texture.TextureAtlasSprite;
 import net.minecraft.client.renderer.vertex.VertexFormat;
 import net.minecraft.util.EnumFacing;
+import net.minecraftforge.client.model.IColoredBakedQuad;
+import net.minecraftforge.client.model.IFlexibleBakedModel;
+import net.minecraftforge.client.model.IQuadInfo;
+import net.minecraftforge.client.model.IColoredBakedQuad.ColoredBakedQuad;
 
 /**
  * Doesn't touch the buffer in any way - you'll probably want to at least call buffer.flip after filling it with data.
  */
-public class BakedModelBuilder extends IVertexConsumer.ByteBufferImpl
+public class BakedModelBuilder extends ByteBufferConsumer
 {
     private final ByteBuffer buf;
     private final IQuadInfo info;
@@ -72,7 +76,7 @@ public class BakedModelBuilder extends IVertexConsumer.ByteBufferImpl
         return new BakedModel(isAmbientOcclusion, isGui3d, particle, format, buf, info);
     }
 
-    private static class BakedModel implements IFastBakedModel
+    private static class BakedModel implements IFlexibleBakedModel
     {
         private final boolean isAmbientOcclusion;
         private final boolean isGui3d;
