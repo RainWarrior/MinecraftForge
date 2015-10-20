@@ -49,6 +49,14 @@ public class VertexLighterFlat extends QuadGatheringTransformer
         {
             throw new IllegalArgumentException("vertex lighter needs format with position");
         }
+        if(lightmapIndex == -1)
+        {
+            throw new IllegalArgumentException("vertex lighter needs format with lightmap");
+        }
+        if(colorIndex == -1)
+        {
+            throw new IllegalArgumentException("vertex lighter needs format with color");
+        }
     }
 
     public void startModel(IQuadInfo info)
@@ -62,8 +70,8 @@ public class VertexLighterFlat extends QuadGatheringTransformer
     {
         float[][] position = quadData[posIndex];
         float[][] normal = null;
-        float[][] color = null;
-        float[][] lightmap = null;
+        float[][] lightmap = quadData[lightmapIndex];
+        float[][] color = quadData[colorIndex];
 
         if(normalIndex != -1)
         {
@@ -86,17 +94,11 @@ public class VertexLighterFlat extends QuadGatheringTransformer
             normal[0][3] = 0;
         }
 
-        if(lightmapIndex != -1)
+        int tint = info.getTintIndex(quads);
+        int multiplier = -1;
+        if(tint != -1)
         {
-            lightmap = quadData[lightmapIndex];
-        }
-
-        int tint = -1, multiplier = -1;
-        if(colorIndex != -1)
-        {
-            color = quadData[colorIndex];
-            tint = info.getTintIndex(quads);
-            if(tint != -1) multiplier = blockInfo.getColorMultiplier(tint);
+            multiplier = blockInfo.getColorMultiplier(tint);
         }
 
         for(int v = 0; v < 4; v++)
@@ -116,22 +118,14 @@ public class VertexLighterFlat extends QuadGatheringTransformer
                 z += normal[v][2] * .5f;
             }
 
-            if(lightmapIndex != -1)
-            {
-                updateLightmap(normal[v], lightmap[v], x, y, z);
-            }
-
-            if(colorIndex != -1)
-            {
-                updateColor(normal[v], color[v], x, y, z, tint, multiplier);
-            }
+            updateLightmap(normal[v], lightmap[v], x, y, z);
+            updateColor(normal[v], color[v], x, y, z, tint, multiplier);
 
             for(int e = 0; e < format.getElementCount(); e++)
             {
                 switch(format.getElement(e).getUsage())
                 {
-                case POSITION: if(posIndex != -1)
-                {
+                case POSITION:
                     float[] pos = new float[4];
                     System.arraycopy(position[v], 0, pos, 0, position[v].length);
                     pos[0] += blockInfo.getBlockPos().getX();
@@ -139,18 +133,15 @@ public class VertexLighterFlat extends QuadGatheringTransformer
                     pos[2] += blockInfo.getBlockPos().getZ();
                     parent.put(e, pos);
                     break;
-                }
                 case NORMAL: if(normalIndex != -1)
                 {
                     parent.put(e, normal[v]);
                     break;
                 }
-                case COLOR: if(colorIndex != -1)
-                {
+                case COLOR:
                     parent.put(e, color[v]);
                     break;
-                }
-                case UV: if(format.getElement(e).getIndex() == 1 && lightmapIndex != -1)
+                case UV: if(format.getElement(e).getIndex() == 1)
                 {
                     parent.put(e, lightmap[v]);
                     break;

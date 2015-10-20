@@ -27,8 +27,6 @@ public class VertexLighterSmoothAo extends VertexLighterFlat
 
     protected float calcLightmap(float[][][] light, float[] normal, float x, float y, float z)
     {
-        float ox = x, oy = y, oz = z;
-
         int sx = x < 0 ? 1 : 2;
         int sy = y < 0 ? 1 : 2;
         int sz = z < 0 ? 1 : 2;
@@ -38,14 +36,14 @@ public class VertexLighterSmoothAo extends VertexLighterFlat
         if(z < 0) z++;
 
         float l = 0;
-        l += blockInfo.getLight(light, normal, ox, oy, oz, sx - 1, sy - 1, sz - 1) * (1 - x) * (1 - y) * (1 - z);
-        l += blockInfo.getLight(light, normal, ox, oy, oz, sx - 1, sy - 1, sz - 0) * (1 - x) * (1 - y) * (0 + z);
-        l += blockInfo.getLight(light, normal, ox, oy, oz, sx - 1, sy - 0, sz - 1) * (1 - x) * (0 + y) * (1 - z);
-        l += blockInfo.getLight(light, normal, ox, oy, oz, sx - 1, sy - 0, sz - 0) * (1 - x) * (0 + y) * (0 + z);
-        l += blockInfo.getLight(light, normal, ox, oy, oz, sx - 0, sy - 1, sz - 1) * (0 + x) * (1 - y) * (1 - z);
-        l += blockInfo.getLight(light, normal, ox, oy, oz, sx - 0, sy - 1, sz - 0) * (0 + x) * (1 - y) * (0 + z);
-        l += blockInfo.getLight(light, normal, ox, oy, oz, sx - 0, sy - 0, sz - 1) * (0 + x) * (0 + y) * (1 - z);
-        l += blockInfo.getLight(light, normal, ox, oy, oz, sx - 0, sy - 0, sz - 0) * (0 + x) * (0 + y) * (0 + z);
+        l += blockInfo.getLight(light, normal, sx - 1, sy - 1, sz - 1) * (1 - x) * (1 - y) * (1 - z);
+        l += blockInfo.getLight(light, normal, sx - 1, sy - 1, sz - 0) * (1 - x) * (1 - y) * (0 + z);
+        l += blockInfo.getLight(light, normal, sx - 1, sy - 0, sz - 1) * (1 - x) * (0 + y) * (1 - z);
+        l += blockInfo.getLight(light, normal, sx - 1, sy - 0, sz - 0) * (1 - x) * (0 + y) * (0 + z);
+        l += blockInfo.getLight(light, normal, sx - 0, sy - 1, sz - 1) * (0 + x) * (1 - y) * (1 - z);
+        l += blockInfo.getLight(light, normal, sx - 0, sy - 1, sz - 0) * (0 + x) * (1 - y) * (0 + z);
+        l += blockInfo.getLight(light, normal, sx - 0, sy - 0, sz - 1) * (0 + x) * (0 + y) * (1 - z);
+        l += blockInfo.getLight(light, normal, sx - 0, sy - 0, sz - 0) * (0 + x) * (0 + y) * (0 + z);
 
         if(l > 1) l = 1;
         if(l < 0) l = 0;

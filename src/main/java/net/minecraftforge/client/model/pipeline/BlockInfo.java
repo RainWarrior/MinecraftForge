@@ -45,16 +45,8 @@ public class BlockInfo
         }
     }
 
-    public float getLight(float[][][] light, float[] normal, float cx, float cy, float cz, int ix, int iy, int iz)
+    public float getLight(float[][][] light, float[] normal, int ix, int iy, int iz)
     {
-        float x = cx + 1 - ix;
-        float y = cy + 1 - iy;
-        float z = cz + 1 - iz;
-
-        /*float ax = Math.abs(x);
-        float ay = Math.abs(y);
-        float az = Math.abs(z);*/
-
         float ax = Math.abs(normal[0]);
         float ay = Math.abs(normal[1]);
         float az = Math.abs(normal[2]);
@@ -110,14 +102,14 @@ public class BlockInfo
         return light[nx][ny][nz];
     }
 
-    public float getSkyLight(float[] normal, float cx, float cy, float cz, int ix, int iy, int iz)
+    public float getSkyLight(float[] normal, int ix, int iy, int iz)
     {
-        return getLight(skyLight, normal, cx, cy, cz, ix, iy, iz);
+        return getLight(skyLight, normal, ix, iy, iz);
     }
 
-    public float getBlockLight(float[] normal, float cx, float cy, float cz, int ix, int iy, int iz)
+    public float getBlockLight(float[] normal, int ix, int iy, int iz)
     {
-        return getLight(blockLight, normal, cx, cy, cz, ix, iy, iz);
+        return getLight(blockLight, normal, ix, iy, iz);
     }
 
     public void setWorld(IBlockAccess world)
