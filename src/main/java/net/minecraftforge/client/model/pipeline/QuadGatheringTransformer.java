@@ -8,7 +8,6 @@ public abstract class QuadGatheringTransformer implements IVertexConsumer
 {
     protected IVertexConsumer parent;
     protected VertexFormat format;
-    protected int quads = 0;
     protected int vertices = 0;
 
     protected float[][][] quadData = null;
@@ -31,7 +30,6 @@ public abstract class QuadGatheringTransformer implements IVertexConsumer
         {
             vertices = 0;
             processQuad();
-            quads++;
         }
     }
 

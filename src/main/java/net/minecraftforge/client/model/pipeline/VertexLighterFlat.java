@@ -5,19 +5,18 @@ import javax.vecmath.Vector3f;
 import net.minecraft.block.Block;
 import net.minecraft.client.renderer.vertex.VertexFormat;
 import net.minecraft.util.BlockPos;
+import net.minecraft.util.EnumFacing;
 import net.minecraft.world.IBlockAccess;
-import net.minecraftforge.client.model.IQuadInfo;
 
 public class VertexLighterFlat extends QuadGatheringTransformer
 {
     protected final BlockInfo blockInfo = new BlockInfo();
+    private int tint = -1;
 
     protected int posIndex = -1;
     protected int normalIndex = -1;
     protected int colorIndex = -1;
     protected int lightmapIndex = -1;
-
-    private IQuadInfo info = null;
 
     @Override
     public void setVertexFormat(VertexFormat format)
@@ -59,12 +58,6 @@ public class VertexLighterFlat extends QuadGatheringTransformer
         }
     }
 
-    public void startModel(IQuadInfo info)
-    {
-        this.info = info;
-        quads = 0;
-    }
-
     @Override
     protected void processQuad()
     {
@@ -94,7 +87,6 @@ public class VertexLighterFlat extends QuadGatheringTransformer
             normal[0][3] = 0;
         }
 
-        int tint = info.getTintIndex(quads);
         int multiplier = -1;
         if(tint != -1)
         {
@@ -111,7 +103,7 @@ public class VertexLighterFlat extends QuadGatheringTransformer
             float y = position[v][1] - .5f;
             float z = position[v][2] - .5f;
 
-            if(blockInfo.getBlock().isFullCube())
+            //if(blockInfo.getBlock().isFullCube())
             {
                 x += normal[v][0] * .5f;
                 y += normal[v][1] * .5f;
@@ -182,6 +174,14 @@ public class VertexLighterFlat extends QuadGatheringTransformer
         }
     }
 
+    public void setQuadTint(int tint)
+    {
+        this.tint = tint;
+    }
+    public void setQuadOrientation(EnumFacing orientation) {}
+    public void setQuadCulled() {}
+    public void setQuadColored() {}
+
     public void setParent(IVertexConsumer parent)
     {
         this.parent = parent;
@@ -200,11 +200,6 @@ public class VertexLighterFlat extends QuadGatheringTransformer
     public void setBlockPos(BlockPos blockPos)
     {
         blockInfo.setBlockPos(blockPos);
-    }
-
-    public void skipQuads(int quads)
-    {
-        this.quads += quads;
     }
 
     public void updateBlockInfo()

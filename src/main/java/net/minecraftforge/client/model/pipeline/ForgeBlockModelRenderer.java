@@ -10,8 +10,6 @@ import net.minecraft.client.resources.model.IBakedModel;
 import net.minecraft.util.BlockPos;
 import net.minecraft.util.EnumFacing;
 import net.minecraft.world.IBlockAccess;
-import net.minecraftforge.client.model.IFlexibleBakedModel;
-import net.minecraftforge.client.model.IQuadInfo;
 
 public class ForgeBlockModelRenderer extends BlockModelRenderer
 {
@@ -59,16 +57,6 @@ public class ForgeBlockModelRenderer extends BlockModelRenderer
             lighter.setVertexFormat(wr.getVertexFormat());
             lastRenderer.set(wr);
         }
-        IQuadInfo info;
-        if(model instanceof IFlexibleBakedModel)
-        {
-            info = new IQuadInfo.Impl((IFlexibleBakedModel)model);
-        }
-        else
-        {
-            info = new IQuadInfo.Impl(new IFlexibleBakedModel.Wrapper(model, wr.getVertexFormat()));
-        }
-        lighter.startModel(info);
         boolean empty = true;
         List<BakedQuad> quads = model.getGeneralQuads();
         if(!quads.isEmpty())
@@ -77,7 +65,7 @@ public class ForgeBlockModelRenderer extends BlockModelRenderer
             empty = false;
             for(BakedQuad quad : quads)
             {
-                LightUtil.putBakedQuad(lighter, quad, wr.getVertexFormat());
+                quad.pipe(lighter, wr.getVertexFormat());
             }
         }
         for(EnumFacing side : EnumFacing.values())
@@ -91,12 +79,8 @@ public class ForgeBlockModelRenderer extends BlockModelRenderer
                     empty = false;
                     for(BakedQuad quad : quads)
                     {
-                        LightUtil.putBakedQuad(lighter, quad, wr.getVertexFormat());
+                        quad.pipe(lighter, wr.getVertexFormat());
                     }
-                }
-                else
-                {
-                    lighter.skipQuads(quads.size());
                 }
             }
         }

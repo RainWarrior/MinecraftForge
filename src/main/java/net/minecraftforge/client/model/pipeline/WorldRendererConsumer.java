@@ -3,6 +3,7 @@ package net.minecraftforge.client.model.pipeline;
 import net.minecraft.client.renderer.WorldRenderer;
 import net.minecraft.client.renderer.vertex.VertexFormat;
 import net.minecraft.client.renderer.vertex.VertexFormatElement;
+import net.minecraft.util.EnumFacing;
 
 /**
  * Assumes VertexFormatElement is present in the WorlRenderer's vertex format.
@@ -65,4 +66,8 @@ public class WorldRendererConsumer implements IVertexConsumer
             renderer.addVertex(x, y, z);
         }
     }
+
+    public void setQuadTint(int tint) {}
+    public void setQuadOrientation(EnumFacing orientation) {}
+    public void setQuadColored() {}
 }

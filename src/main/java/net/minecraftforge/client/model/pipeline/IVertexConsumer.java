@@ -1,6 +1,7 @@
 package net.minecraftforge.client.model.pipeline;
 
 import net.minecraft.client.renderer.vertex.VertexFormat;
+import net.minecraft.util.EnumFacing;
 
 /**
  * Assumes that the data length is not less than e.getElementCount().
@@ -9,6 +10,14 @@ import net.minecraft.client.renderer.vertex.VertexFormat;
  */
 public interface IVertexConsumer
 {
+    /**
+     * @param format the format that will be used for passed data.
+     */
     void setVertexFormat(VertexFormat format);
+
+    void setQuadTint(int tint);
+    void setQuadOrientation(EnumFacing orientation);
+    void setQuadColored();
+
     void put(int element, float... data);
 }

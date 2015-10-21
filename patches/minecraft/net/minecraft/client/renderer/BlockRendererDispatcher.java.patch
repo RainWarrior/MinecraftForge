@@ -5,7 +5,7 @@
      private BlockModelShapes field_175028_a;
      private final GameSettings field_175026_b;
 -    private final BlockModelRenderer field_175027_c = new BlockModelRenderer();
-+    private final BlockModelRenderer field_175027_c = new net.minecraftforge.client.model.ForgeBlockModelRenderer();
++    private final BlockModelRenderer field_175027_c = new net.minecraftforge.client.model.pipeline.ForgeBlockModelRenderer();
      private final ChestRenderer field_175024_d = new ChestRenderer();
      private final BlockFluidRenderer field_175025_e = new BlockFluidRenderer();
      private static final String __OBFID = "CL_00002520";
