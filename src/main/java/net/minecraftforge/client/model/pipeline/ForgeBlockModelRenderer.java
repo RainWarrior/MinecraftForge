@@ -21,7 +21,6 @@ public class ForgeBlockModelRenderer extends BlockModelRenderer
             return new VertexLighterFlat();
         }
     };
-
     private final ThreadLocal<VertexLighterSmoothAo> lighterSmooth = new ThreadLocal<VertexLighterSmoothAo>()
     {
         @Override
@@ -37,26 +36,30 @@ public class ForgeBlockModelRenderer extends BlockModelRenderer
     @Override
     public boolean renderModelStandard(IBlockAccess world, IBakedModel model, Block block, BlockPos pos, WorldRenderer wr, boolean checkSides)
     {
-        return render(lighterFlat.get(), lastRendererFlat, world, model, block, pos, wr, checkSides);
+        if(wr != lastRendererFlat.get())
+        {
+            lastRendererFlat.set(wr);
+            lighterFlat.get().setParent(new WorldRendererConsumer(wr));
+        }
+        return render(lighterFlat.get(), world, model, block, pos, wr, checkSides);
     }
 
     @Override
     public boolean renderModelAmbientOcclusion(IBlockAccess world, IBakedModel model, Block block, BlockPos pos, WorldRenderer wr, boolean checkSides)
     {
-        return render(lighterSmooth.get(), lastRendererSmooth, world, model, block, pos, wr, checkSides);
+        if(wr != lastRendererSmooth.get())
+        {
+            lastRendererSmooth.set(wr);
+            lighterSmooth.get().setParent(new WorldRendererConsumer(wr));
+        }
+        return render(lighterSmooth.get(), world, model, block, pos, wr, checkSides);
     }
 
-    public static boolean render(VertexLighterFlat lighter, ThreadLocal<WorldRenderer> lastRenderer, IBlockAccess world, IBakedModel model, Block block, BlockPos pos, WorldRenderer wr, boolean checkSides)
+    public static boolean render(VertexLighterFlat lighter, IBlockAccess world, IBakedModel model, Block block, BlockPos pos, WorldRenderer wr, boolean checkSides)
     {
         lighter.setWorld(world);
         lighter.setBlock(block);
         lighter.setBlockPos(pos);
-        if(wr != lastRenderer.get())
-        {
-            lighter.setParent(new WorldRendererConsumer(wr));
-            lighter.setVertexFormat(wr.getVertexFormat());
-            lastRenderer.set(wr);
-        }
         boolean empty = true;
         List<BakedQuad> quads = model.getGeneralQuads();
         if(!quads.isEmpty())
@@ -65,7 +68,7 @@ public class ForgeBlockModelRenderer extends BlockModelRenderer
             empty = false;
             for(BakedQuad quad : quads)
             {
-                quad.pipe(lighter, wr.getVertexFormat());
+                quad.pipe(lighter);
             }
         }
         for(EnumFacing side : EnumFacing.values())
@@ -79,7 +82,7 @@ public class ForgeBlockModelRenderer extends BlockModelRenderer
                     empty = false;
                     for(BakedQuad quad : quads)
                     {
-                        quad.pipe(lighter, wr.getVertexFormat());
+                        quad.pipe(lighter);
                     }
                 }
             }

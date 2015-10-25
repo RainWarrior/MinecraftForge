@@ -2,7 +2,6 @@ package net.minecraftforge.client.model.pipeline;
 
 import net.minecraft.client.renderer.block.model.BakedQuad;
 import net.minecraft.client.renderer.vertex.VertexFormat;
-import net.minecraft.client.renderer.vertex.VertexFormatElement;
 import net.minecraft.util.EnumFacing;
 import net.minecraftforge.client.model.IColoredBakedQuad;
 
@@ -39,24 +38,9 @@ public class UnpackedBakedQuad extends BakedQuad
     }
 
     @Override
-    public void pipe(IVertexConsumer consumer, VertexFormat format)
+    public void pipe(IVertexConsumer consumer)
     {
-        int[] eMap = new int[format.getElementCount()];
-
-        for(int e = 0; e < format.getElementCount(); e++)
-        {
-            VertexFormatElement expected = format.getElement(e);
-            int e2;
-            for(e2 = 0; e2 < this.format.getElementCount(); e2++)
-            {
-                VertexFormatElement current = this.format.getElement(e2);
-                if(expected.getUsage() == current.getUsage() && expected.getIndex() == current.getIndex())
-                {
-                    break;
-                }
-            }
-            eMap[e] = e2;
-        }
+        int[] eMap = LightUtil.mapFormats(consumer.getVertexFormat(), format);
 
         if(hasTintIndex())
         {
@@ -69,15 +53,15 @@ public class UnpackedBakedQuad extends BakedQuad
         }
         for(int v = 0; v < 4; v++)
         {
-            for(int e = 0; e < format.getElementCount(); e++)
+            for(int e = 0; e < consumer.getVertexFormat().getElementCount(); e++)
             {
-                if(eMap[e] != this.format.getElementCount())
+                if(eMap[e] != format.getElementCount())
                 {
                     consumer.put(e, unpackedData[v][eMap[e]]);
                 }
                 else
                 {
-                    consumer.put(e, 1, 1, 1, 1);
+                    consumer.put(e);
                 }
             }
         }
@@ -93,8 +77,8 @@ public class UnpackedBakedQuad extends BakedQuad
 
     public static class Builder implements IVertexConsumer
     {
-        private VertexFormat format;
-        private float[][][] unpackedData;
+        private final VertexFormat format;
+        private final float[][][] unpackedData;
         private int tint = -1;
         private EnumFacing orientation;
         private boolean isColored = false;
@@ -103,10 +87,15 @@ public class UnpackedBakedQuad extends BakedQuad
         private int elements = 0;
         private boolean full = false;
 
-        public void setVertexFormat(VertexFormat format)
+        public Builder(VertexFormat format)
         {
             this.format = format;
             unpackedData = new float[4][format.getElementCount()][4];
+        }
+
+        public VertexFormat getVertexFormat()
+        {
+            return format;
         }
 
         public void setQuadTint(int tint)
@@ -151,6 +140,10 @@ public class UnpackedBakedQuad extends BakedQuad
 
         public UnpackedBakedQuad build()
         {
+            if(!full)
+            {
+                throw new IllegalStateException("not enough data");
+            }
             if(isColored)
             {
                 return new Colored(unpackedData, tint, orientation, format);

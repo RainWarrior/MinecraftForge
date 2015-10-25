@@ -11,9 +11,9 @@ import net.minecraft.util.EnumFacing;
 public interface IVertexConsumer
 {
     /**
-     * @param format the format that will be used for passed data.
+     * @return the format that should be used for passed data.
      */
-    void setVertexFormat(VertexFormat format);
+    VertexFormat getVertexFormat();
 
     void setQuadTint(int tint);
     void setQuadOrientation(EnumFacing orientation);

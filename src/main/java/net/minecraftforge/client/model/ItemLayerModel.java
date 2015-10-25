@@ -260,8 +260,7 @@ public class ItemLayerModel implements IRetexturableModel {
         float x2, float y2, float z2, float u2, float v2,
         float x3, float y3, float z3, float u3, float v3)
     {
-        UnpackedBakedQuad.Builder builder = new UnpackedBakedQuad.Builder();
-        builder.setVertexFormat(format);
+        UnpackedBakedQuad.Builder builder = new UnpackedBakedQuad.Builder(format);
         builder.setQuadTint(tint);
         builder.setQuadOrientation(side);
         putVertex(builder, format, transform, side, x0, y0, z0, u0, v0);

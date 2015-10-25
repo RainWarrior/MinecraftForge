@@ -11,9 +11,9 @@ public abstract class TransformerConsumer implements IVertexConsumer {
     }
 
     @Override
-    public void setVertexFormat(VertexFormat format)
+    public VertexFormat getVertexFormat()
     {
-        parent.setVertexFormat(format);
+        return parent.getVertexFormat();
     }
 
     @Override

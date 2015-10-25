@@ -2,8 +2,11 @@ package net.minecraftforge.client.model.pipeline;
 
 import javax.vecmath.Vector3f;
 
+import com.google.common.base.Objects;
+
 import net.minecraft.block.Block;
 import net.minecraft.client.renderer.vertex.VertexFormat;
+import net.minecraft.client.renderer.vertex.VertexFormatElement;
 import net.minecraft.util.BlockPos;
 import net.minecraft.util.EnumFacing;
 import net.minecraft.world.IBlockAccess;
@@ -19,12 +22,14 @@ public class VertexLighterFlat extends QuadGatheringTransformer
     protected int lightmapIndex = -1;
 
     @Override
-    public void setVertexFormat(VertexFormat format)
+    public void setParent(IVertexConsumer parent)
     {
-        super.setVertexFormat(format);
-        for(int i = 0; i < format.getElementCount(); i++)
+        super.setParent(parent);
+        if(Objects.equal(getVertexFormat(), parent.getVertexFormat())) return;
+        setVertexFormat(getVertexFormat(parent));
+        for(int i = 0; i < getVertexFormat().getElementCount(); i++)
         {
-            switch(format.getElement(i).getUsage())
+            switch(getVertexFormat().getElement(i).getUsage())
             {
             case POSITION:
                 posIndex = i;
@@ -36,7 +41,7 @@ public class VertexLighterFlat extends QuadGatheringTransformer
                 colorIndex = i;
                 break;
             case UV:
-                if(format.getElement(i).getIndex() == 1)
+                if(getVertexFormat().getElement(i).getIndex() == 1)
                 {
                     lightmapIndex = i;
                 }
@@ -58,6 +63,15 @@ public class VertexLighterFlat extends QuadGatheringTransformer
         }
     }
 
+    private static VertexFormat getVertexFormat(IVertexConsumer parent)
+    {
+        VertexFormat format = parent.getVertexFormat();
+        if(format.hasNormal()) return format;
+        format = new VertexFormat(format);
+        format.setElement(new VertexFormatElement(0, VertexFormatElement.EnumType.FLOAT, VertexFormatElement.EnumUsage.NORMAL, 4));
+        return format;
+    }
+
     @Override
     protected void processQuad()
     {
@@ -66,25 +80,31 @@ public class VertexLighterFlat extends QuadGatheringTransformer
         float[][] lightmap = quadData[lightmapIndex];
         float[][] color = quadData[colorIndex];
 
-        if(normalIndex != -1)
+        if(normalIndex != -1 && (
+            quadData[normalIndex][0][0] != -1 ||
+            quadData[normalIndex][0][1] != -1 ||
+            quadData[normalIndex][0][2] != -1))
         {
             normal = quadData[normalIndex];
         }
         else
         {
-            normal = new float[4][];
-            normal[0] = normal[1] = normal[2] = normal[3] = new float[4];
-            Vector3f x = new Vector3f(position[0]);
-            Vector3f y = new Vector3f(position[1]);
-            Vector3f z = new Vector3f(position[2]);
-            z.sub(y);
-            y.sub(x);
-            y.cross(y, z);
-            y.normalize();
-            normal[0][0] = y.x;
-            normal[0][1] = y.y;
-            normal[0][2] = y.z;
-            normal[0][3] = 0;
+            normal = new float[4][4];
+            Vector3f v1 = new Vector3f(position[3]);
+            Vector3f t = new Vector3f(position[1]);
+            Vector3f v2 = new Vector3f(position[2]);
+            v1.sub(t);
+            t.set(position[0]);
+            v2.sub(t);
+            v1.cross(v2, v1);
+            v1.normalize();
+            for(int v = 0; v < 4; v++)
+            {
+                normal[v][0] = v1.x;
+                normal[v][1] = v1.y;
+                normal[v][2] = v1.z;
+                normal[v][3] = 0;
+            }
         }
 
         int multiplier = -1;
@@ -113,16 +133,17 @@ public class VertexLighterFlat extends QuadGatheringTransformer
             updateLightmap(normal[v], lightmap[v], x, y, z);
             updateColor(normal[v], color[v], x, y, z, tint, multiplier);
 
-            for(int e = 0; e < format.getElementCount(); e++)
+            // no need for remapping cause all we could've done is add 1 element to the end
+            for(int e = 0; e < parent.getVertexFormat().getElementCount(); e++)
             {
-                switch(format.getElement(e).getUsage())
+                switch(parent.getVertexFormat().getElement(e).getUsage())
                 {
                 case POSITION:
                     float[] pos = new float[4];
                     System.arraycopy(position[v], 0, pos, 0, position[v].length);
-                    pos[0] += blockInfo.getBlockPos().getX();
-                    pos[1] += blockInfo.getBlockPos().getY();
-                    pos[2] += blockInfo.getBlockPos().getZ();
+                    pos[0] += (blockInfo.getBlockPos().getX() & 0xF);
+                    pos[1] += (blockInfo.getBlockPos().getY() & 0xF);
+                    pos[2] += (blockInfo.getBlockPos().getZ() & 0xF);
                     parent.put(e, pos);
                     break;
                 case NORMAL: if(normalIndex != -1)
@@ -133,7 +154,7 @@ public class VertexLighterFlat extends QuadGatheringTransformer
                 case COLOR:
                     parent.put(e, color[v]);
                     break;
-                case UV: if(format.getElement(e).getIndex() == 1)
+                case UV: if(getVertexFormat().getElement(e).getIndex() == 1)
                 {
                     parent.put(e, lightmap[v]);
                     break;
@@ -143,6 +164,7 @@ public class VertexLighterFlat extends QuadGatheringTransformer
                 }
             }
         }
+        tint = -1;
     }
 
     protected void updateLightmap(float[] normal, float[] lightmap, float x, float y, float z)
@@ -160,8 +182,8 @@ public class VertexLighterFlat extends QuadGatheringTransformer
 
         int brightness = blockInfo.getBlock().getMixedBrightnessForBlock(blockInfo.getWorld(), pos);
 
-        lightmap[0] = (float)((brightness >> 0x14) & 0xF) / 0xF;
-        lightmap[1] = (float)((brightness >> 0x04) & 0xF) / 0xF;
+        lightmap[0] = ((float)((brightness >> 0x04) & 0xF) * 0x20) / 0xFFFF - 1;
+        lightmap[1] = ((float)((brightness >> 0x14) & 0xF) * 0x20) / 0xFFFF - 1;
     }
 
     protected void updateColor(float[] normal, float[] color, float x, float y, float z, float tint, int multiplier)
@@ -181,11 +203,6 @@ public class VertexLighterFlat extends QuadGatheringTransformer
     public void setQuadOrientation(EnumFacing orientation) {}
     public void setQuadCulled() {}
     public void setQuadColored() {}
-
-    public void setParent(IVertexConsumer parent)
-    {
-        this.parent = parent;
-    }
 
     public void setWorld(IBlockAccess world)
     {

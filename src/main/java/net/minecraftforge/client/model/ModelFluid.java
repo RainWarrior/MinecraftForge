@@ -152,8 +152,7 @@ public class ModelFluid implements IModelCustomData
                 float s = MathHelper.sin(flow) * scale;
 
                 EnumFacing side = gas ? EnumFacing.DOWN : EnumFacing.UP;
-                UnpackedBakedQuad.Builder builder = new UnpackedBakedQuad.Builder();
-                builder.setVertexFormat(format);
+                UnpackedBakedQuad.Builder builder = new UnpackedBakedQuad.Builder(format);
                 builder.setQuadOrientation(side);
                 builder.setQuadColored();
                 for(int i = gas ? 3 : 0; i != (gas ? -1 : 4); i+= (gas ? -1 : 1))
@@ -169,8 +168,7 @@ public class ModelFluid implements IModelCustomData
                 // bottom
 
                 side = side.getOpposite();
-                builder = new UnpackedBakedQuad.Builder();
-                builder.setVertexFormat(format);
+                builder = new UnpackedBakedQuad.Builder(format);
                 builder.setQuadOrientation(side);
                 builder.setQuadColored();
                 for(int i = gas ? 3 : 0; i != (gas ? -1 : 4); i+= (gas ? -1 : 1))
@@ -192,8 +190,7 @@ public class ModelFluid implements IModelCustomData
 
                     for(int k = 0; k < 2; k++)
                     {
-                        builder = new UnpackedBakedQuad.Builder();
-                        builder.setVertexFormat(format);
+                        builder = new UnpackedBakedQuad.Builder(format);
                         builder.setQuadOrientation(side);
                         builder.setQuadColored();
                         for(int j = 0; j < 4; j++)
@@ -216,8 +213,7 @@ public class ModelFluid implements IModelCustomData
             {
                 // 1 quad for inventory
 
-                UnpackedBakedQuad.Builder builder = new UnpackedBakedQuad.Builder();
-                builder.setVertexFormat(format);
+                UnpackedBakedQuad.Builder builder = new UnpackedBakedQuad.Builder(format);
                 builder.setQuadOrientation(EnumFacing.UP);
                 builder.setQuadColored();
                 for(int i = 0; i < 4; i++)
@@ -256,7 +252,7 @@ public class ModelFluid implements IModelCustomData
                     break;
                 }
                 case NORMAL:
-                    builder.put(e, (float)side.getFrontOffsetX(), (float)side.getFrontOffsetX(), (float)side.getFrontOffsetX(), 0f);
+                    builder.put(e, (float)side.getFrontOffsetX(), (float)side.getFrontOffsetY(), (float)side.getFrontOffsetZ(), 0f);
                     break;
                 default:
                     builder.put(e);

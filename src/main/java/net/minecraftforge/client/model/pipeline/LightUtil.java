@@ -1,8 +1,16 @@
 package net.minecraftforge.client.model.pipeline;
 
+import com.google.common.cache.CacheBuilder;
+import com.google.common.cache.CacheLoader;
+import com.google.common.cache.LoadingCache;
+
+import net.minecraft.client.renderer.Tessellator;
+import net.minecraft.client.renderer.WorldRenderer;
 import net.minecraft.client.renderer.block.model.BakedQuad;
+import net.minecraft.client.renderer.vertex.DefaultVertexFormats;
 import net.minecraft.client.renderer.vertex.VertexFormat;
 import net.minecraft.client.renderer.vertex.VertexFormatElement;
+import net.minecraft.client.renderer.vertex.VertexFormatElement.EnumUsage;
 import net.minecraft.util.EnumFacing;
 import net.minecraftforge.client.model.IColoredBakedQuad;
 
@@ -61,7 +69,17 @@ public class LightUtil
         }
     }
 
-    public static void putBakedQuad(IVertexConsumer consumer, BakedQuad quad, VertexFormat format)
+    private static final LoadingCache<VertexFormat, int[]> formatMaps = CacheBuilder.newBuilder()
+        .maximumSize(10)
+        .build(new CacheLoader<VertexFormat, int[]>()
+        {
+            public int[] load(VertexFormat format)
+            {
+                return mapFormats(format, DefaultVertexFormats.ITEM);
+            }
+        });
+
+    public static void putBakedQuad(IVertexConsumer consumer, BakedQuad quad)
     {
         consumer.setQuadOrientation(quad.getFace());
         if(quad.hasTintIndex())
@@ -72,42 +90,80 @@ public class LightUtil
         {
             consumer.setQuadColored();
         }
+        //int[] eMap = mapFormats(consumer.getVertexFormat(), DefaultVertexFormats.ITEM);
+        int[] eMap = formatMaps.getUnchecked(consumer.getVertexFormat());
         for(int v = 0; v < 4; v++)
         {
-            for(int e = 0; e < format.getElementCount(); e++)
+            for(int e = 0; e < consumer.getVertexFormat().getElementCount(); e++)
             {
-                float[] data = new float[4];
-                unpack(quad.getVertexData(), data, format, v, e);
-                consumer.put(e, data);
+                if(eMap[e] != DefaultVertexFormats.ITEM.getElementCount())
+                {
+                    float[] data = new float[4];
+                    unpack(quad.getVertexData(), data, DefaultVertexFormats.ITEM, v, eMap[e]);
+                    consumer.put(e, data);
+                }
+                else
+                {
+                    consumer.put(e);
+                }
             }
         }
     }
 
-    public static void unpack(int[] from, float[] to, VertexFormat format, int v, int e)
+    public static int[] mapFormats(VertexFormat from, VertexFormat to)
     {
-        VertexFormatElement element = format.getElement(e);
+        int[] eMap = new int[from.getElementCount()];
+
+        for(int e = 0; e < from.getElementCount(); e++)
+        {
+            VertexFormatElement expected = from.getElement(e);
+            int e2;
+            for(e2 = 0; e2 < to.getElementCount(); e2++)
+            {
+                VertexFormatElement current = to.getElement(e2);
+                if(expected.getUsage() == current.getUsage() && expected.getIndex() == current.getIndex())
+                {
+                    break;
+                }
+            }
+            eMap[e] = e2;
+        }
+        return eMap;
+    }
+
+    public static void unpack(int[] from, float[] to, VertexFormat formatFrom, int v, int e)
+    {
+        VertexFormatElement element = formatFrom.getElement(e);
         for(int i = 0; i < 4; i++)
         {
             if(i < element.getElementCount())
             {
-                int pos = v * format.getNextOffset() + element.getOffset() + element.getType().getSize() * i;
+                int pos = v * formatFrom.getNextOffset() + element.getOffset() + element.getType().getSize() * i;
                 int index = pos >> 2;
                 int offset = pos & 3;
                 int bits = from[index];
                 bits = bits >>> (offset * 8);
-                if((pos + element.getElementCount() - 1) / 4 != index)
+                if((pos + element.getType().getSize() - 1) / 4 != index)
                 {
                     bits |= from[index + 1] << ((4 - offset) * 8);
                 }
                 int mask = (256 << (8 * (element.getType().getSize() - 1))) - 1;
                 bits &= mask;
-                if(element.getType() == VertexFormatElement.EnumType.FLOAT)
+                switch(element.getType())
                 {
+                case FLOAT:
                     to[i] = Float.intBitsToFloat(bits);
-                }
-                else
-                {
+                    break;
+                case UBYTE:
+                case USHORT:
+                case UINT:
                     to[i] = (float)bits / mask;
+                    break;
+                case BYTE:
+                case SHORT:
+                case INT:
+                    to[i] = (float)bits / mask * 2 - 1;
+                    break;
                 }
             }
             else
@@ -117,29 +173,135 @@ public class LightUtil
         }
     }
 
-    public static void pack(float[] from, int[] to, VertexFormat format, int v, int e)
+    public static void pack(float[] from, int[] to, VertexFormat formatTo, int v, int e)
     {
-        VertexFormatElement element = format.getElement(e);
+        VertexFormatElement element = formatTo.getElement(e);
         for(int i = 0; i < 4; i++)
         {
             if(i < element.getElementCount())
             {
-                int pos = v * format.getNextOffset() + element.getOffset() + element.getType().getSize() * i;
+                int pos = v * formatTo.getNextOffset() + element.getOffset() + element.getType().getSize() * i;
                 int index = pos >> 2;
                 int offset = pos & 3;
-                int bits;
+                int bits = 0;
                 int mask = (256 << (8 * (element.getType().getSize() - 1))) - 1;
-                if(element.getType() == VertexFormatElement.EnumType.FLOAT)
+                switch(element.getType())
                 {
+                case FLOAT:
                     bits = Float.floatToRawIntBits(from[i]);
-                }
-                else
-                {
+                    break;
+                case UBYTE:
+                case USHORT:
+                case UINT:
                     bits = (int)(from[i] * mask);
+                    break;
+                case BYTE:
+                case SHORT:
+                case INT:
+                    bits = (int)((from[i] + 1) * mask / 2);
+                    break;
                 }
                 to[index] &= ~(mask << (offset * 8));
                 to[index] |= (((bits & mask) << (offset * 8)));
                 // TODO handle overflow into to[index + 1]
+            }
+        }
+    }
+
+    private static IVertexConsumer tessellator = null;
+    public static IVertexConsumer getTessellator()
+    {
+        if(tessellator == null)
+        {
+            Tessellator tes = Tessellator.getInstance();
+            WorldRenderer wr = tes.getWorldRenderer();
+            tessellator = new WorldRendererConsumer(wr);
+        }
+        return tessellator;
+    }
+
+    private static ItemConsumer itemConsumer = null;
+    public static ItemConsumer getItemConsumer()
+    {
+        if(itemConsumer == null)
+        {
+            itemConsumer = new ItemConsumer(getTessellator());
+        }
+        return itemConsumer;
+    }
+
+    public static void renderQuadColor(WorldRenderer wr, BakedQuad quad, int auxColor)
+    {
+        ItemConsumer cons;
+        if(wr == Tessellator.getInstance().getWorldRenderer())
+        {
+            cons = getItemConsumer();
+        }
+        else
+        {
+            cons = new ItemConsumer(new WorldRendererConsumer(wr));
+        }
+        float r = (float)(auxColor & 0xFF) / 0xFF;
+        float g = (float)((auxColor >>> 8) & 0xFF) / 0xFF;
+        float b = (float)((auxColor >>> 16) & 0xFF) / 0xFF;
+        float a = (float)((auxColor >>> 24) & 0xFF) / 0xFF;
+        cons.setAuxColor(r, g, b, a);
+        quad.pipe(cons);
+    }
+
+    public static class ItemConsumer extends VertexTransformer
+    {
+        private boolean colored = false;
+        private int vertices = 0;
+
+        private float[] auxColor = new float[]{1, 1, 1, 1};
+
+        public ItemConsumer(IVertexConsumer parent)
+        {
+            super(parent);
+        }
+
+        public void setAuxColor(float... auxColor)
+        {
+            System.arraycopy(auxColor, 0, this.auxColor, 0, this.auxColor.length);
+        }
+
+        @Override
+        public void setQuadColored()
+        {
+            colored = true;
+        }
+
+        public void put(int element, float... data)
+        {
+            if(getVertexFormat().getElement(element).getUsage() == EnumUsage.COLOR)
+            {
+                float[] newData = new float[]{1, 1, 1, 1};
+                if(colored)
+                {
+                    for(int i = 0; i < 4; i++)
+                    {
+                        newData[i] *= data[i];
+                    }
+                }
+                for(int i = 0; i < 4; i++)
+                {
+                    newData[i] *= auxColor[i];
+                }
+                super.put(element, newData);
+            }
+            else
+            {
+                super.put(element, data);
+            }
+            if(element == getVertexFormat().getElementCount() - 1)
+            {
+                vertices++;
+                if(vertices == 4)
+                {
+                    vertices = 0;
+                    colored = false;
+                }
             }
         }
     }

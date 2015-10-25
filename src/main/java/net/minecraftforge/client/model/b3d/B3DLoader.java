@@ -522,8 +522,7 @@ public class B3DLoader implements ICustomModelLoader
                 });
                 for(Face f : faces)
                 {
-                    UnpackedBakedQuad.Builder quadBuilder = new UnpackedBakedQuad.Builder();
-                    quadBuilder.setVertexFormat(format);
+                    UnpackedBakedQuad.Builder quadBuilder = new UnpackedBakedQuad.Builder(format);
                     quadBuilder.setQuadOrientation(EnumFacing.getFacingFromVector(f.getNormal().x, f.getNormal().y, f.getNormal().z));
                     quadBuilder.setQuadColored();
                     List<Texture> textures = null;
