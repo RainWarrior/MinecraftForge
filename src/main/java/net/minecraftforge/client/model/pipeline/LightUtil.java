@@ -156,13 +156,19 @@ public class LightUtil
                     break;
                 case UBYTE:
                 case USHORT:
-                case UINT:
                     to[i] = (float)bits / mask;
                     break;
+                case UINT:
+                    to[i] = (float)((double)(bits & 0xFFFFFFFFL) / 0xFFFFFFFFL);
+                    break;
                 case BYTE:
+                    to[i] = ((float)(byte)bits) / mask * 2;
+                    break;
                 case SHORT:
+                    to[i] = ((float)(short)bits) / mask * 2;
+                    break;
                 case INT:
-                    to[i] = (float)bits / mask * 2 - 1;
+                    to[i] = ((float)(bits & 0xFFFFFFFFL)) / 0xFFFFFFFFL * 2;
                     break;
                 }
             }
@@ -198,7 +204,7 @@ public class LightUtil
                 case BYTE:
                 case SHORT:
                 case INT:
-                    bits = (int)((from[i] + 1) * mask / 2);
+                    bits = (int)(from[i] * mask / 2);
                     break;
                 }
                 to[index] &= ~(mask << (offset * 8));

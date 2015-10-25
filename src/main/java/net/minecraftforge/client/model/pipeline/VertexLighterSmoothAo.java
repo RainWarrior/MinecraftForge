@@ -8,8 +8,8 @@ public class VertexLighterSmoothAo extends VertexLighterFlat
     @Override
     protected void updateLightmap(float[] normal, float[] lightmap, float x, float y, float z)
     {
-        lightmap[0] = calcLightmap(blockInfo.getBlockLight(), x, y, z) - 1;
-        lightmap[1] = calcLightmap(blockInfo.getSkyLight(), x, y, z) - 1;
+        lightmap[0] = calcLightmap(blockInfo.getBlockLight(), x, y, z);
+        lightmap[1] = calcLightmap(blockInfo.getSkyLight(), x, y, z);
     }
 
     @Override

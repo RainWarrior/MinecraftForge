@@ -182,8 +182,8 @@ public class VertexLighterFlat extends QuadGatheringTransformer
 
         int brightness = blockInfo.getBlock().getMixedBrightnessForBlock(blockInfo.getWorld(), pos);
 
-        lightmap[0] = ((float)((brightness >> 0x04) & 0xF) * 0x20) / 0xFFFF - 1;
-        lightmap[1] = ((float)((brightness >> 0x14) & 0xF) * 0x20) / 0xFFFF - 1;
+        lightmap[0] = ((float)((brightness >> 0x04) & 0xF) * 0x20) / 0xFFFF;
+        lightmap[1] = ((float)((brightness >> 0x14) & 0xF) * 0x20) / 0xFFFF;
     }
 
     protected void updateColor(float[] normal, float[] color, float x, float y, float z, float tint, int multiplier)
