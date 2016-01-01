@@ -1,35 +1,19 @@
 package net.minecraftforge.debug;
 
 import java.io.IOException;
-import java.util.List;
-import java.util.concurrent.TimeUnit;
 
 import net.minecraft.block.Block;
 import net.minecraft.block.BlockPistonBase;
 import net.minecraft.block.material.Material;
 import net.minecraft.block.properties.IProperty;
-import net.minecraft.block.properties.PropertyBool;
 import net.minecraft.block.properties.PropertyDirection;
 import net.minecraft.block.state.IBlockState;
-import net.minecraft.client.Minecraft;
-import net.minecraft.client.model.ModelBase;
-import net.minecraft.client.renderer.BlockRendererDispatcher;
-import net.minecraft.client.renderer.GlStateManager;
-import net.minecraft.client.renderer.RenderHelper;
-import net.minecraft.client.renderer.Tessellator;
-import net.minecraft.client.renderer.WorldRenderer;
-import net.minecraft.client.renderer.block.model.BakedQuad;
+import net.minecraft.client.renderer.entity.Render;
 import net.minecraft.client.renderer.entity.RenderLiving;
 import net.minecraft.client.renderer.entity.RenderManager;
-import net.minecraft.client.renderer.entity.RendererLivingEntity;
-import net.minecraft.client.renderer.texture.TextureAtlasSprite;
 import net.minecraft.client.renderer.texture.TextureMap;
-import net.minecraft.client.renderer.tileentity.TileEntitySpecialRenderer;
-import net.minecraft.client.renderer.vertex.DefaultVertexFormats;
-import net.minecraft.client.resources.model.IBakedModel;
 import net.minecraft.client.resources.model.ModelResourceLocation;
 import net.minecraft.creativetab.CreativeTabs;
-import net.minecraft.entity.Entity;
 import net.minecraft.entity.EntityLiving;
 import net.minecraft.entity.EntityLivingBase;
 import net.minecraft.entity.SharedMonsterAttributes;
@@ -41,26 +25,21 @@ import net.minecraft.util.EnumFacing;
 import net.minecraft.util.ResourceLocation;
 import net.minecraft.world.IBlockAccess;
 import net.minecraft.world.World;
-import net.minecraftforge.client.MinecraftForgeClient;
 import net.minecraftforge.client.model.IModel;
-import net.minecraftforge.client.model.IModelCustomData;
-import net.minecraftforge.client.model.IModelState;
 import net.minecraftforge.client.model.IRetexturableModel;
-import net.minecraftforge.client.model.ISmartBlockModel;
 import net.minecraftforge.client.model.ModelLoader;
 import net.minecraftforge.client.model.ModelLoaderRegistry;
 import net.minecraftforge.client.model.MultiModel;
 import net.minecraftforge.client.model.TRSRTransformation;
 import net.minecraftforge.client.model.animation.Animation;
+import net.minecraftforge.client.model.animation.AnimationModelBase;
 import net.minecraftforge.client.model.animation.AnimationStateMachine;
+import net.minecraftforge.client.model.animation.AnimationTESR;
 import net.minecraftforge.client.model.animation.IAnimationProvider;
 import net.minecraftforge.client.model.animation.IParameter;
 import net.minecraftforge.client.model.b3d.B3DLoader;
-import net.minecraftforge.client.model.pipeline.VertexLighterFlat;
 import net.minecraftforge.client.model.pipeline.VertexLighterSmoothAo;
-import net.minecraftforge.client.model.pipeline.WorldRendererConsumer;
 import net.minecraftforge.common.property.ExtendedBlockState;
-import net.minecraftforge.common.property.IExtendedBlockState;
 import net.minecraftforge.common.property.IUnlistedProperty;
 import net.minecraftforge.fml.client.registry.ClientRegistry;
 import net.minecraftforge.fml.client.registry.IRenderFactory;
@@ -74,14 +53,9 @@ import net.minecraftforge.fml.common.registry.EntityRegistry;
 import net.minecraftforge.fml.common.registry.GameRegistry;
 
 import org.apache.commons.lang3.tuple.Pair;
-import org.lwjgl.opengl.GL11;
 
-import com.google.common.base.Function;
 import com.google.common.base.Objects;
 import com.google.common.base.Throwables;
-import com.google.common.cache.CacheBuilder;
-import com.google.common.cache.CacheLoader;
-import com.google.common.cache.LoadingCache;
 import com.google.common.collect.ImmutableMap;
 
 @Mod(modid = ModelAnimationDebug.MODID, version = ModelAnimationDebug.VERSION)
@@ -92,7 +66,6 @@ public class ModelAnimationDebug
 
     public static String blockName = "test_animation_block";
     public static final PropertyDirection FACING = PropertyDirection.create("facing");
-    public static final PropertyBool STATIC = PropertyBool.create("static");;
 
     @Instance(MODID)
     public static ModelAnimationDebug instance;
@@ -114,7 +87,7 @@ public class ModelAnimationDebug
                 @Override
                 public ExtendedBlockState createBlockState()
                 {
-                    return new ExtendedBlockState(this, new IProperty[]{ FACING, STATIC }, new IUnlistedProperty[]{ Animation.AnimationProperty });
+                    return new ExtendedBlockState(this, new IProperty[]{ FACING, Animation.StaticProperty }, new IUnlistedProperty[]{ Animation.AnimationProperty });
                 }
 
                 @Override
@@ -151,7 +124,7 @@ public class ModelAnimationDebug
 
                 @Override
                 public IBlockState getActualState(IBlockState state, IBlockAccess world, BlockPos pos) {
-                    return state.withProperty(STATIC, true);
+                    return state.withProperty(Animation.StaticProperty, true);
                 }
 
                 /*@Override
@@ -192,15 +165,66 @@ public class ModelAnimationDebug
             super.preInit(event);
             B3DLoader.instance.addDomain(MODID);
             ModelLoader.setCustomModelResourceLocation(Item.getItemFromBlock(GameRegistry.findBlock(MODID, blockName)), 0, new ModelResourceLocation(MODID.toLowerCase() + ":" + blockName, "inventory"));
-            ClientRegistry.bindTileEntitySpecialRenderer(Chest.class, ChestRenderer.instance);
+            ClientRegistry.bindTileEntitySpecialRenderer(Chest.class, new AnimationTESR<Chest>());
             String entityName = MODID + ":entity_chest";
             //EntityRegistry.registerGlobalEntityID(EntityChest.class, entityName, EntityRegistry.findGlobalUniqueEntityId());
             EntityRegistry.registerModEntity(EntityChest.class, entityName, 0, ModelAnimationDebug.instance, 64, 20, true, 0xFFAAAA00, 0xFFDDDD00);
             RenderingRegistry.registerEntityRenderingHandler(EntityChest.class, new IRenderFactory<EntityChest>()
             {
-                public RenderChest createRenderFor(RenderManager manager)
+                private IModel model;
+
                 {
-                    return new RenderChest(manager, new ChestModel(), 0.5f);
+                    try
+                    {
+                        /*model = ModelLoaderRegistry.getModel(new ResourceLocation(ModelLoaderRegistryDebug.MODID, "block/chest.b3d"));
+                        if(model instanceof IRetexturableModel)
+                        {
+                            model = ((IRetexturableModel)model).retexture(ImmutableMap.of("#chest", "entity/chest/normal"));
+                        }
+                        if(model instanceof IModelCustomData)
+                        {
+                            model = ((IModelCustomData)model).process(ImmutableMap.of("mesh", "[\"Base\", \"Lid\"]"));
+                        }*/
+                        IModel base = ModelLoaderRegistry.getModel(new ResourceLocation(ModelAnimationDebug.MODID, "block/engine"));
+                        IModel ring = ModelLoaderRegistry.getModel(new ResourceLocation(ModelAnimationDebug.MODID, "block/engine_ring"));
+                        ImmutableMap<String, String> textures = ImmutableMap.of(
+                            "base", "blocks/stone",
+                            "front", "blocks/log_oak",
+                            "chamber", "blocks/redstone_block",
+                            "trunk", "blocks/end_stone"
+                        );
+                        if(base instanceof IRetexturableModel)
+                        {
+                            base = ((IRetexturableModel)base).retexture(textures);
+                        }
+                        if(ring instanceof IRetexturableModel)
+                        {
+                            ring = ((IRetexturableModel)ring).retexture(textures);
+                        }
+                        model = new MultiModel(
+                            new ResourceLocation(ModelAnimationDebug.MODID, "builtin/engine"),
+                            ring,
+                            TRSRTransformation.identity(),
+                            ImmutableMap.of(
+                                "base", Pair.of(base, TRSRTransformation.identity())
+                            )
+                        );
+                    }
+                    catch(IOException e)
+                    {
+                        Throwables.propagate(e);
+                    }
+                }
+
+                public Render<EntityChest> createRenderFor(RenderManager manager)
+                {
+                    return new RenderLiving<EntityChest>(manager, new AnimationModelBase<EntityChest>(model, new VertexLighterSmoothAo()), 0.5f)
+                    {
+                        protected ResourceLocation getEntityTexture(EntityChest entity)
+                        {
+                            return TextureMap.locationBlocksTexture;
+                        }
+                    };
                 }
             });
         }
@@ -303,79 +327,6 @@ public class ModelAnimationDebug
         }
     }
 
-    private static class ChestRenderer extends TileEntitySpecialRenderer<Chest>
-    {
-        private final LoadingCache<Pair<IExtendedBlockState, IModelState>, IBakedModel> modelCache = CacheBuilder.newBuilder().maximumSize(10).expireAfterWrite(100, TimeUnit.MILLISECONDS).build(new CacheLoader<Pair<IExtendedBlockState, IModelState>, IBakedModel>()
-        {
-            public IBakedModel load(Pair<IExtendedBlockState, IModelState> key) throws Exception
-            {
-                IBakedModel model = blockRenderer.getBlockModelShapes().getModelForState(key.getLeft().getClean());
-                if(model instanceof ISmartBlockModel)
-                {
-                    model = ((ISmartBlockModel)model).handleBlockState(key.getLeft().withProperty(Animation.AnimationProperty, key.getRight()));
-                }
-                return model;
-            }
-        });
-
-        public static ChestRenderer instance = new ChestRenderer();
-        private ChestRenderer() {}
-
-        private BlockRendererDispatcher blockRenderer;
-
-        private IBakedModel getModel(IExtendedBlockState state, IModelState modelState)
-        {
-            return modelCache.getUnchecked(Pair.of(state, modelState));
-        }
-
-        public void renderTileEntityAt(Chest te, double x, double y, double z, float partialTick, int breakStage)
-        {
-            if(blockRenderer == null) blockRenderer = Minecraft.getMinecraft().getBlockRendererDispatcher();
-            BlockPos pos = te.getPos();
-            IBlockAccess world = MinecraftForgeClient.getRegionRenderCache(te.getWorld(), pos);
-            IBlockState state = world.getBlockState(pos);
-            if(state.getPropertyNames().contains(STATIC))
-            {
-                state = state.withProperty(STATIC, false);
-            }
-            if(state instanceof IExtendedBlockState)
-            {
-                IExtendedBlockState exState = (IExtendedBlockState)state;
-                if(exState.getUnlistedNames().contains(Animation.AnimationProperty))
-                {
-                    IBakedModel model = getModel(exState, te.asm().apply(Animation.getWorldTime(getWorld(), partialTick)));
-
-                    Tessellator tessellator = Tessellator.getInstance();
-                    WorldRenderer worldrenderer = tessellator.getWorldRenderer();
-                    this.bindTexture(TextureMap.locationBlocksTexture);
-                    RenderHelper.disableStandardItemLighting();
-                    GlStateManager.blendFunc(GL11.GL_SRC_ALPHA, GL11.GL_ONE_MINUS_SRC_ALPHA);
-                    GlStateManager.enableBlend();
-                    GlStateManager.disableCull();
-
-                    if (Minecraft.isAmbientOcclusionEnabled())
-                    {
-                        GlStateManager.shadeModel(GL11.GL_SMOOTH);
-                    }
-                    else
-                    {
-                        GlStateManager.shadeModel(GL11.GL_FLAT);
-                    }
-
-                    worldrenderer.begin(7, DefaultVertexFormats.BLOCK);
-                    worldrenderer.setTranslation(x - pos.getX(), y - pos.getY(), z - pos.getZ());
-
-                    blockRenderer.getBlockModelRenderer().renderModel(world, model, state, pos, worldrenderer, false);
-
-                    worldrenderer.setTranslation(0, 0, 0);
-                    tessellator.draw();
-
-                    RenderHelper.enableStandardItemLighting();
-                }
-            }
-        }
-    }
-
     public static class EntityChest extends EntityLiving implements IAnimationProvider
     {
         private final AnimationStateMachine asm;
@@ -412,130 +363,6 @@ public class ModelAnimationDebug
         {
             super.applyEntityAttributes();
             this.getEntityAttribute(SharedMonsterAttributes.maxHealth).setBaseValue(60);
-        }
-    }
-
-    public static class RenderChest extends RenderLiving<EntityChest>
-    {
-        public RenderChest(RenderManager manager, ModelBase model, float shadowSize)
-        {
-            super(manager, model, shadowSize);
-        }
-
-        @Override
-        protected ResourceLocation getEntityTexture(EntityChest entity)
-        {
-            return TextureMap.locationBlocksTexture;
-        }
-    }
-
-    public static class ChestModel extends ModelBase
-    {
-        private final VertexLighterFlat lighter = new VertexLighterSmoothAo();
-
-        private IModel model;
-
-        @Override
-        public void render(Entity entity, float limbSwing, float limbSwingSpeed, float timeAlive, float yawHead, float rotationPitch, float scale)
-        {
-            if(model == null) try
-            {
-                /*model = ModelLoaderRegistry.getModel(new ResourceLocation(ModelLoaderRegistryDebug.MODID, "block/chest.b3d"));
-                if(model instanceof IRetexturableModel)
-                {
-                    model = ((IRetexturableModel)model).retexture(ImmutableMap.of("#chest", "entity/chest/normal"));
-                }
-                if(model instanceof IModelCustomData)
-                {
-                    model = ((IModelCustomData)model).process(ImmutableMap.of("mesh", "[\"Base\", \"Lid\"]"));
-                }*/
-                IModel base = ModelLoaderRegistry.getModel(new ResourceLocation(ModelAnimationDebug.MODID, "block/engine"));
-                IModel ring = ModelLoaderRegistry.getModel(new ResourceLocation(ModelAnimationDebug.MODID, "block/engine_ring"));
-                ImmutableMap<String, String> textures = ImmutableMap.of(
-                    "base", "blocks/stone",
-                    "front", "blocks/log_oak",
-                    "chamber", "blocks/redstone_block",
-                    "trunk", "blocks/end_stone"
-                );
-                if(base instanceof IRetexturableModel)
-                {
-                    base = ((IRetexturableModel)base).retexture(textures);
-                }
-                if(ring instanceof IRetexturableModel)
-                {
-                    ring = ((IRetexturableModel)ring).retexture(textures);
-                }
-                model = new MultiModel(
-                    new ResourceLocation(ModelAnimationDebug.MODID, "builtin/engine"),
-                    ring,
-                    TRSRTransformation.identity(),
-                    ImmutableMap.of(
-                        "base", Pair.of(base, TRSRTransformation.identity())
-                    )
-                );
-            }
-            catch(IOException e)
-            {
-                Throwables.propagate(e);
-            }
-
-            IBakedModel bakedModel = model.bake(((IAnimationProvider)entity).asm().apply(timeAlive / 20), DefaultVertexFormats.ITEM, new Function<ResourceLocation, TextureAtlasSprite>()
-            {
-                public TextureAtlasSprite apply(ResourceLocation location)
-                {
-                    return Minecraft.getMinecraft().getTextureMapBlocks().getAtlasSprite(location.toString());
-                }
-            });
-
-            BlockPos pos = new BlockPos(entity.posX, entity.posY + entity.height, entity.posZ);
-
-            RenderHelper.disableStandardItemLighting();
-            GlStateManager.pushMatrix();
-            GlStateManager.rotate(180, 0, 0, 1);
-            Tessellator tessellator = Tessellator.getInstance();
-            WorldRenderer worldRenderer = tessellator.getWorldRenderer();
-            worldRenderer.begin(GL11.GL_QUADS, DefaultVertexFormats.BLOCK);
-            worldRenderer.setTranslation(-0.5, -1.5, -0.5);
-
-            lighter.setParent(new WorldRendererConsumer(worldRenderer));
-            lighter.setWorld(entity.worldObj);
-            lighter.setBlock(GameRegistry.findBlock(MODID, blockName));
-            lighter.setBlockPos(pos);
-            boolean empty = true;
-            List<BakedQuad> quads = bakedModel.getGeneralQuads();
-            if(!quads.isEmpty())
-            {
-                lighter.updateBlockInfo();
-                empty = false;
-                for(BakedQuad quad : quads)
-                {
-                    quad.pipe(lighter);
-                }
-            }
-            for(EnumFacing side : EnumFacing.values())
-            {
-                quads = bakedModel.getFaceQuads(side);
-                if(!quads.isEmpty())
-                {
-                    if(empty) lighter.updateBlockInfo();
-                    empty = false;
-                    for(BakedQuad quad : quads)
-                    {
-                        quad.pipe(lighter);
-                    }
-                }
-            }
-
-            /*worldRenderer.pos(0, 1, 0).color(0xFF, 0xFF, 0xFF, 0xFF).tex(0, 0).lightmap(240, 0).endVertex();
-            worldRenderer.pos(0, 1, 1).color(0xFF, 0xFF, 0xFF, 0xFF).tex(0, 1).lightmap(240, 0).endVertex();
-            worldRenderer.pos(1, 1, 1).color(0xFF, 0xFF, 0xFF, 0xFF).tex(1, 1).lightmap(240, 0).endVertex();
-            worldRenderer.pos(1, 1, 0).color(0xFF, 0xFF, 0xFF, 0xFF).tex(1, 0).lightmap(240, 0).endVertex();*/
-
-            worldRenderer.setTranslation(0, 0, 0);
-
-            tessellator.draw();
-            GlStateManager.popMatrix();
-            RenderHelper.enableStandardItemLighting();
         }
     }
 }

@@ -140,14 +140,7 @@ public class ModelLoader extends ModelBakery
                 }
             }
         });
-        Function<ResourceLocation, TextureAtlasSprite> textureGetter = new Function<ResourceLocation, TextureAtlasSprite>()
-        {
-            public TextureAtlasSprite apply(ResourceLocation location)
-            {
-                return Minecraft.getMinecraft().getTextureMapBlocks().getAtlasSprite(location.toString());
-            }
-        };
-        IFlexibleBakedModel missingBaked = missingModel.bake(missingModel.getDefaultState(), DefaultVertexFormats.ITEM, textureGetter);
+        IFlexibleBakedModel missingBaked = missingModel.bake(missingModel.getDefaultState(), DefaultVertexFormats.ITEM, DefaultTextureGetter.instance);
         for (Entry<ModelResourceLocation, IModel> e : stateModels.entrySet())
         {
             if(e.getValue() == getMissingModel())
@@ -156,7 +149,7 @@ public class ModelLoader extends ModelBakery
             }
             else
             {
-                bakedRegistry.putObject(e.getKey(), e.getValue().bake(e.getValue().getDefaultState(), DefaultVertexFormats.ITEM, textureGetter));
+                bakedRegistry.putObject(e.getKey(), e.getValue().bake(e.getValue().getDefaultState(), DefaultVertexFormats.ITEM, DefaultTextureGetter.instance));
             }
         }
         return bakedRegistry;
@@ -1067,5 +1060,20 @@ public class ModelLoader extends ModelBakery
         {
             mesher.register(e.getKey().getLeft().get(), e.getKey().getRight(), e.getValue());
         }
+    }
+
+    private static enum DefaultTextureGetter implements Function<ResourceLocation, TextureAtlasSprite>
+    {
+        instance;
+
+        public TextureAtlasSprite apply(ResourceLocation location)
+        {
+            return Minecraft.getMinecraft().getTextureMapBlocks().getAtlasSprite(location.toString());
+        }
+    }
+
+    public static Function<ResourceLocation, TextureAtlasSprite> defaultTextureGetter()
+    {
+        return DefaultTextureGetter.instance;
     }
 }

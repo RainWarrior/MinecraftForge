@@ -1,5 +1,6 @@
 package net.minecraftforge.client.model.animation;
 
+import net.minecraft.block.properties.PropertyBool;
 import net.minecraft.util.ResourceLocation;
 import net.minecraft.world.World;
 import net.minecraftforge.client.model.IModelState;
@@ -13,6 +14,7 @@ import com.google.common.collect.ImmutableTable;
 
 public class Animation
 {
+    public static final PropertyBool StaticProperty = PropertyBool.create("static");
     public static final IUnlistedProperty<IModelState> AnimationProperty = new IUnlistedProperty<IModelState>()
     {
         public String getName() { return "forge_animation"; }
