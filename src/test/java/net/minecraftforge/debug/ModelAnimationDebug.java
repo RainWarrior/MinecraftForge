@@ -26,6 +26,7 @@ import net.minecraft.util.ResourceLocation;
 import net.minecraft.world.IBlockAccess;
 import net.minecraft.world.World;
 import net.minecraftforge.client.model.IModel;
+import net.minecraftforge.client.model.IModelState;
 import net.minecraftforge.client.model.IRetexturableModel;
 import net.minecraftforge.client.model.ModelLoader;
 import net.minecraftforge.client.model.ModelLoaderRegistry;
@@ -206,7 +207,7 @@ public class ModelAnimationDebug
                             ring,
                             TRSRTransformation.identity(),
                             ImmutableMap.of(
-                                "base", Pair.of(base, TRSRTransformation.identity())
+                                "base", Pair.<IModel, IModelState>of(base, TRSRTransformation.identity())
                             )
                         );
                     }
