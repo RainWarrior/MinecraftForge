@@ -172,8 +172,7 @@ public class ModelAnimationDebug
             EntityRegistry.registerModEntity(EntityChest.class, entityName, 0, ModelAnimationDebug.instance, 64, 20, true, 0xFFAAAA00, 0xFFDDDD00);
             RenderingRegistry.registerEntityRenderingHandler(EntityChest.class, new IRenderFactory<EntityChest>()
             {
-                private IModel model;
-
+                public Render<EntityChest> createRenderFor(RenderManager manager)
                 {
                     try
                     {
@@ -202,7 +201,7 @@ public class ModelAnimationDebug
                         {
                             ring = ((IRetexturableModel)ring).retexture(textures);
                         }
-                        model = new MultiModel(
+                        IModel model = new MultiModel(
                             new ResourceLocation(ModelAnimationDebug.MODID, "builtin/engine"),
                             ring,
                             TRSRTransformation.identity(),
@@ -210,22 +209,18 @@ public class ModelAnimationDebug
                                 "base", Pair.<IModel, IModelState>of(base, TRSRTransformation.identity())
                             )
                         );
+                        return new RenderLiving<EntityChest>(manager, new AnimationModelBase<EntityChest>(model, new VertexLighterSmoothAo()), 0.5f)
+                        {
+                            protected ResourceLocation getEntityTexture(EntityChest entity)
+                            {
+                                return TextureMap.locationBlocksTexture;
+                            }
+                        };
                     }
                     catch(IOException e)
                     {
-                        Throwables.propagate(e);
+                        throw new RuntimeException(e);
                     }
-                }
-
-                public Render<EntityChest> createRenderFor(RenderManager manager)
-                {
-                    return new RenderLiving<EntityChest>(manager, new AnimationModelBase<EntityChest>(model, new VertexLighterSmoothAo()), 0.5f)
-                    {
-                        protected ResourceLocation getEntityTexture(EntityChest entity)
-                        {
-                            return TextureMap.locationBlocksTexture;
-                        }
-                    };
                 }
             });
         }
