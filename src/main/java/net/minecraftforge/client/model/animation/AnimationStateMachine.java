@@ -21,7 +21,7 @@ public class AnimationStateMachine
 {
     private final ImmutableMap<String, ? extends IClip> clips;
     private final ImmutableList<String> states;
-    private final ImmutableTable<IClip, IClip, ? extends IClipProvider> transitions;
+    private final ImmutableTable<String, String, ? extends IClipProvider> transitions;
 
     private static final LoadingCache<Pair<? extends IClip, Float>, IModelState> clipCache = CacheBuilder.newBuilder()
         .maximumSize(100)
@@ -35,7 +35,7 @@ public class AnimationStateMachine
             }
         });
 
-    public AnimationStateMachine(ImmutableMap<String, IClip> clips, ImmutableList<String> states, ImmutableTable<IClip, IClip, ? extends IClipProvider> transitions, String startState)
+    public AnimationStateMachine(ImmutableMap<String, IClip> clips, ImmutableList<String> states, ImmutableTable<String, String, ? extends IClipProvider> transitions, String startState)
     {
         this.clips = clips;
         this.states = states;
@@ -85,11 +85,11 @@ public class AnimationStateMachine
         {
             throw new IllegalStateException("unknown state: " + newClip);
         }
-        if(!transitions.contains(currentState, nc))
+        if(!transitions.contains(currentStateName, newClip))
         {
             throw new IllegalArgumentException("no transition from current clip to the clip " + newClip + " found.");
         }
-        currentTransition = transitions.get(currentState, nc).apply(currentTime);
+        currentTransition = transitions.get(currentStateName, newClip).apply(currentTime);
         currentStateName = newClip;
         currentState = nc;
         transitionStart = currentTime;

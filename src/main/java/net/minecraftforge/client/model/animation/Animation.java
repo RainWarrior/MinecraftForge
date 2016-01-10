@@ -36,7 +36,7 @@ public class Animation
     private static final AnimationStateMachine missing = new AnimationStateMachine(
         ImmutableMap.of("missingno", (IClip)Clips.IdentityClip.instance),
         ImmutableList.of("missingno"),
-        ImmutableTable.<IClip, IClip, IClipProvider>of(),
+        ImmutableTable.<String, String, IClipProvider>of(),
         "missingno");
 
     /**
@@ -54,9 +54,9 @@ public class Animation
             IClipProvider c2o = Clips.slerpFactory(closed, open, Parameters.NoopParameter.instance, 1);
             IClipProvider o2c = Clips.slerpFactory(open, closed, Parameters.NoopParameter.instance, 1);
 
-            ImmutableTable.Builder<IClip, IClip, IClipProvider> builder = ImmutableTable.builder();
-            builder.put(closed, open, c2o);
-            builder.put(open, closed, o2c);
+            ImmutableTable.Builder<String, String, IClipProvider> builder = ImmutableTable.builder();
+            builder.put("closed", "open", c2o);
+            builder.put("open", "closed", o2c);
 
             return new AnimationStateMachine(
                 ImmutableMap.of("closed", closed, "open", open),
@@ -77,9 +77,9 @@ public class Animation
             IClipProvider d2m = Clips.createClipLength(default_, roundCycle);
             IClipProvider m2d = Clips.createClipLength(moving, roundCycle);
 
-            ImmutableTable.Builder<IClip, IClip, IClipProvider> builder = ImmutableTable.builder();
-            builder.put(default_, moving, d2m);
-            builder.put(moving, default_, m2d);
+            ImmutableTable.Builder<String, String, IClipProvider> builder = ImmutableTable.builder();
+            builder.put("default", "moving", d2m);
+            builder.put("moving", "default", m2d);
 
             return new AnimationStateMachine(
                 ImmutableMap.of("default", default_, "moving", moving),
