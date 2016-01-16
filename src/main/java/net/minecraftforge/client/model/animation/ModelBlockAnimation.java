@@ -11,7 +11,7 @@ import javax.vecmath.Vector3f;
 
 import net.minecraft.client.renderer.block.model.BlockPart;
 import net.minecraft.util.MathHelper;
-import net.minecraft.util.ResourceLocation;
+import net.minecraftforge.client.model.IModelState;
 import net.minecraftforge.client.model.TRSRTransformation;
 import net.minecraftforge.client.model.animation.ModelBlockAnimation.Parameter.Interpolation;
 import net.minecraftforge.client.model.animation.ModelBlockAnimation.Parameter.Type;
@@ -23,41 +23,43 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableMultimap;
 import com.google.common.collect.Sets;
+import com.google.gson.annotations.SerializedName;
 
 public class ModelBlockAnimation
 {
-    private final ResourceLocation location;
-    private final ImmutableMap<String, MBJointInfo> jointInfos;
-    private final ImmutableMap<String, Optional<MBClip>> clips;
-    private final ImmutableMultimap<Integer, MBJointInfo> joints;
+    private final ImmutableMap<String, ImmutableMap<Integer, float[]>> joints;
+    private final ImmutableMap<String, MBClip> clips;
+    private transient ImmutableMultimap<Integer, MBJointWeight> jointIndexMap;
 
-    public ModelBlockAnimation(ResourceLocation location, ImmutableMap<String, MBJointInfo> jointInfos, ImmutableMap<String, Optional<MBClip>> clips)
+    public ModelBlockAnimation(ImmutableMap<String, ImmutableMap<Integer, float[]>> joints, ImmutableMap<String, MBClip> clips)
     {
-        this.location = location;
-        this.jointInfos = jointInfos;
+        this.joints = joints;
         this.clips = clips;
-        ImmutableMultimap.Builder<Integer, MBJointInfo> builder = ImmutableMultimap.builder();
-        for(MBJointInfo info : jointInfos.values())
-        {
-            for(Map.Entry<Integer, float[]> e : info.getWeights().entrySet())
-            {
-                builder.put(e.getKey(), info);
-            }
-        }
-        joints = builder.build();
     }
 
-    public ImmutableMap<String, Optional<MBClip>> getClips()
+    public ImmutableMap<String, MBClip> getClips()
     {
         return clips;
     }
 
-    public ImmutableCollection<MBJointInfo> getJoint(int i)
+    public ImmutableCollection<MBJointWeight> getJoint(int i)
     {
-        return joints.get(i);
+        if(jointIndexMap == null)
+        {
+            ImmutableMultimap.Builder<Integer, MBJointWeight> builder = ImmutableMultimap.builder();
+            for(Map.Entry<String, ImmutableMap<Integer, float[]>> info : joints.entrySet())
+            {
+                for(Map.Entry<Integer, float[]> e : info.getValue().entrySet())
+                {
+                    builder.put(e.getKey(), new MBJointWeight(info.getKey(), info.getValue()));
+                }
+            }
+            jointIndexMap = builder.build();
+        }
+        return jointIndexMap.get(i);
     }
 
-    public static class MBVariableClip
+    protected static class MBVariableClip
     {
         private final Variable variable;
         @SuppressWarnings("unused")
@@ -74,127 +76,36 @@ public class ModelBlockAnimation
         }
     }
 
-    public static class MBJointClip implements IJointClip
+    protected static class MBClip implements IClip
     {
-        private final MBJointInfo jointInfo;
         private final boolean loop;
-        private final ImmutableList<MBVariableClip> vars;
+        @SerializedName("joint_clips")
+        private final ImmutableMap<String, ImmutableList<MBVariableClip>> jointClipsFlat;
+        private transient ImmutableMap<String, MBJointClip> jointClips;
 
-        public MBJointClip(MBJointInfo jointInfo, boolean loop, ImmutableList<MBVariableClip> vars)
+        protected MBClip()
         {
-            this.jointInfo = jointInfo;
+            this(false, ImmutableMap.<String, ImmutableList<MBVariableClip>>of());
+        }
+
+        public MBClip(boolean loop, ImmutableMap<String, ImmutableList<MBVariableClip>> clips)
+        {
             this.loop = loop;
-            this.vars = vars;
-            EnumSet<Variable> hadVar = Sets.newEnumSet(Collections.<Variable>emptyList(), Variable.class);
-            for(MBVariableClip var : vars)
-            {
-                if(hadVar.contains(var.variable))
-                {
-                    throw new IllegalArgumentException("duplicate variable: " + var);
-                }
-                hadVar.add(var.variable);
-            }
-        }
-
-        public TRSRTransformation apply(float time)
-        {
-            time -= Math.floor(time);
-            Vector3f translation = new Vector3f(0, 0, 0);
-            Vector3f scale = new Vector3f(1, 1, 1);
-            AxisAngle4f rotation = new AxisAngle4f(0, 0, 0, 0);
-            for(MBVariableClip var : vars)
-            {
-                int length = loop ? var.samples.length : (var.samples.length - 1);
-                float timeScaled = time * length;
-                int s1 = MathHelper.clamp_int((int)Math.round(Math.floor(timeScaled)), 0, length - 1);
-                float progress = timeScaled - s1;
-                int s2 = s1 + 1;
-                if(s2 == length && loop) s2 = 0;
-                float value = 0;
-                switch(var.interpolation)
-                {
-                    case Linear:
-                        if(var.variable == Variable.AR)
-                        {
-                            float v1 = var.samples[s1];
-                            float v2 = var.samples[s2];
-                            float diff = ((v2 - v1) % 360 + 540) % 360 - 180;
-                            value = v1 + diff * progress;
-                        }
-                        else
-                        {
-                            value = var.samples[s1] * (1 - progress) + var.samples[s2] * progress;
-                        }
-                        break;
-                    case Nearest:
-                        value = var.samples[progress < .5f ? s1 : s2];
-                        break;
-                }
-                switch(var.variable)
-                {
-                    case X:
-                        translation.x = value;
-                        break;
-                    case Y:
-                        translation.y = value;
-                        break;
-                    case Z:
-                        translation.z = value;
-                        break;
-                    case XR:
-                        rotation.x = value;
-                        break;
-                    case YR:
-                        rotation.y = value;
-                        break;
-                    case ZR:
-                        rotation.z = value;
-                        break;
-                    case AR:
-                        rotation.angle = (float)Math.toRadians(value);
-                        break;
-                    case SCALE:
-                        scale.x = scale.y = scale.z = value;
-                        break;
-                    case XS:
-                        scale.x = value;
-                        break;
-                    case YS:
-                        scale.y = value;
-                        break;
-                    case ZS:
-                        scale.z = value;
-                        break;
-                }
-            }
-            Quat4f rot = new Quat4f();
-            rot.set(rotation);
-            return TRSRTransformation.blockCenterToCorner(new TRSRTransformation(translation, rot, scale, null));
-        }
-
-        public MBJointInfo getJointInfo()
-        {
-            return jointInfo;
-        }
-    }
-
-    public static class MBClip implements IClip
-    {
-        private final ImmutableMap<String, MBJointClip> jointClips;
-
-        public MBClip(ImmutableList<MBJointClip> jointClips)
-        {
-            ImmutableMap.Builder<String, MBJointClip> builder = ImmutableMap.builder();
-            for(MBJointClip clip : jointClips)
-            {
-                builder.put(clip.getJointInfo().getName(), clip);
-            }
-            this.jointClips = builder.build();
+            this.jointClipsFlat = clips;
         }
 
         @Override
         public IJointClip apply(IJoint joint)
         {
+            if(jointClips == null)
+            {
+                ImmutableMap.Builder<String, MBJointClip> builder = ImmutableMap.builder();
+                for(Map.Entry<String, ImmutableList<MBVariableClip>> e : jointClipsFlat.entrySet())
+                {
+                    builder.put(e.getKey(), new MBJointClip(loop, e.getValue()));
+                }
+                jointClips = builder.build();
+            }
             if(joint instanceof MBJoint)
             {
                 MBJoint mbJoint = (MBJoint)joint;
@@ -204,9 +115,106 @@ public class ModelBlockAnimation
             }
             return JointClips.IdentityJointClip.instance;
         }
+
+        protected static class MBJointClip implements IJointClip
+        {
+            private final boolean loop;
+            private final ImmutableList<MBVariableClip> variables;
+
+            public MBJointClip(boolean loop, ImmutableList<MBVariableClip> variables)
+            {
+                this.loop = loop;
+                this.variables = variables;
+                EnumSet<Variable> hadVar = Sets.newEnumSet(Collections.<Variable>emptyList(), Variable.class);
+                for(MBVariableClip var : variables)
+                {
+                    if(hadVar.contains(var.variable))
+                    {
+                        throw new IllegalArgumentException("duplicate variable: " + var);
+                    }
+                    hadVar.add(var.variable);
+                }
+            }
+
+            public TRSRTransformation apply(float time)
+            {
+                time -= Math.floor(time);
+                Vector3f translation = new Vector3f(0, 0, 0);
+                Vector3f scale = new Vector3f(1, 1, 1);
+                AxisAngle4f rotation = new AxisAngle4f(0, 0, 0, 0);
+                for(MBVariableClip var : variables)
+                {
+                    int length = loop ? var.samples.length : (var.samples.length - 1);
+                    float timeScaled = time * length;
+                    int s1 = MathHelper.clamp_int((int)Math.round(Math.floor(timeScaled)), 0, length - 1);
+                    float progress = timeScaled - s1;
+                    int s2 = s1 + 1;
+                    if(s2 == length && loop) s2 = 0;
+                    float value = 0;
+                    switch(var.interpolation)
+                    {
+                        case LINEAR:
+                            if(var.variable == Variable.ANGLE)
+                            {
+                                float v1 = var.samples[s1];
+                                float v2 = var.samples[s2];
+                                float diff = ((v2 - v1) % 360 + 540) % 360 - 180;
+                                value = v1 + diff * progress;
+                            }
+                            else
+                            {
+                                value = var.samples[s1] * (1 - progress) + var.samples[s2] * progress;
+                            }
+                            break;
+                        case NEAREST:
+                            value = var.samples[progress < .5f ? s1 : s2];
+                            break;
+                    }
+                    switch(var.variable)
+                    {
+                        case X:
+                            translation.x = value;
+                            break;
+                        case Y:
+                            translation.y = value;
+                            break;
+                        case Z:
+                            translation.z = value;
+                            break;
+                        case XROT:
+                            rotation.x = value;
+                            break;
+                        case YROT:
+                            rotation.y = value;
+                            break;
+                        case ZROT:
+                            rotation.z = value;
+                            break;
+                        case ANGLE:
+                            rotation.angle = (float)Math.toRadians(value);
+                            break;
+                        case SCALE:
+                            scale.x = scale.y = scale.z = value;
+                            break;
+                        case XS:
+                            scale.x = value;
+                            break;
+                        case YS:
+                            scale.y = value;
+                            break;
+                        case ZS:
+                            scale.z = value;
+                            break;
+                    }
+                }
+                Quat4f rot = new Quat4f();
+                rot.set(rotation);
+                return TRSRTransformation.blockCenterToCorner(new TRSRTransformation(translation, rot, scale, null));
+            }
+        }
     }
 
-    public static class MBJoint implements IJoint
+    protected static class MBJoint implements IJoint
     {
         private final String name;
         private final TRSRTransformation invBindPose;
@@ -258,12 +266,12 @@ public class ModelBlockAnimation
         }
     }
 
-    public static class MBJointInfo
+    protected static class MBJointWeight
     {
         private final String name;
         private final ImmutableMap<Integer, float[]> weights;
 
-        public MBJointInfo(String name, ImmutableMap<Integer, float[]> weights)
+        public MBJointWeight(String name, ImmutableMap<Integer, float[]> weights)
         {
             this.name = name;
             this.weights = weights;
@@ -280,31 +288,78 @@ public class ModelBlockAnimation
         }
     }
 
-    public static class Parameter
+    protected static class Parameter
     {
         public static enum Variable
         {
+            @SerializedName("offset_x")
             X,
+            @SerializedName("offset_y")
             Y,
+            @SerializedName("offset_z")
             Z,
-            XR,
-            YR,
-            ZR,
-            AR,
+            @SerializedName("axis_x")
+            XROT,
+            @SerializedName("axis_y")
+            YROT,
+            @SerializedName("axis_z")
+            ZROT,
+            @SerializedName("angle")
+            ANGLE,
+            @SerializedName("scale")
             SCALE,
+            @SerializedName("scale_x")
             XS,
+            @SerializedName("scale_y")
             YS,
+            @SerializedName("scale_z")
             ZS;
         }
 
         public static enum Type
         {
-            Uniform;
+            @SerializedName("uniform")
+            UNIFORM;
         }
 
         public static enum Interpolation
         {
-            Linear, Nearest;
+            @SerializedName("linear")
+            LINEAR,
+            @SerializedName("nearest")
+            NEAREST;
         }
+    }
+
+    public TRSRTransformation getPartTransform(IModelState state, BlockPart part, int i)
+    {
+        ImmutableCollection<MBJointWeight> infos = getJoint(i);
+        if(!infos.isEmpty())
+        {
+            Matrix4f m = new Matrix4f(), tmp;
+            float weight = 0;
+            for(MBJointWeight info : infos)
+            {
+                if(info.getWeights().containsKey(i))
+                {
+                    ModelBlockAnimation.MBJoint joint = new ModelBlockAnimation.MBJoint(info.getName(), part);
+                    Optional<TRSRTransformation> trOp = state.apply(Optional.of(joint));
+                    if(trOp.isPresent() && trOp.get() != TRSRTransformation.identity())
+                    {
+                        float w = info.getWeights().get(i)[0];
+                        tmp = trOp.get().getMatrix();
+                        tmp.mul(w);
+                        m.add(tmp);
+                        weight += w;
+                    }
+                }
+            }
+            if(weight > 1e-5)
+            {
+                m.mul(1f / weight);
+                return new TRSRTransformation(m);
+            }
+        }
+        return null;
     }
 }

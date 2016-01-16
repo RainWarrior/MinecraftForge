@@ -15,8 +15,6 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
 
-import javax.vecmath.Matrix4f;
-
 import net.minecraft.block.Block;
 import net.minecraft.block.state.IBlockState;
 import net.minecraft.client.Minecraft;
@@ -59,7 +57,6 @@ import net.minecraftforge.client.model.animation.Clips;
 import net.minecraftforge.client.model.animation.IAnimatedModel;
 import net.minecraftforge.client.model.animation.IClip;
 import net.minecraftforge.client.model.animation.ModelBlockAnimation;
-import net.minecraftforge.client.model.animation.ModelBlockAnimation.MBJointInfo;
 import net.minecraftforge.common.ForgeModContainer;
 import net.minecraftforge.common.property.IExtendedBlockState;
 import net.minecraftforge.fluids.Fluid;
@@ -77,7 +74,6 @@ import org.apache.commons.lang3.tuple.Pair;
 import com.google.common.base.Function;
 import com.google.common.base.Optional;
 import com.google.common.base.Throwables;
-import com.google.common.collect.ImmutableCollection;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
@@ -515,35 +511,7 @@ public class ModelLoader extends ModelBakery
             for(int i = 0; i < model.getElements().size(); i++)
             {
                 BlockPart part = model.getElements().get(i);
-                ImmutableCollection<MBJointInfo> infos = animation.getJoint(i);
-                newTransforms.add(null);
-                if(!infos.isEmpty())
-                {
-                    Matrix4f m = new Matrix4f(), tmp;
-                    float weight = 0;
-                    for(MBJointInfo info : infos)
-                    {
-                        if(info.getWeights().containsKey(i))
-                        {
-                            ModelBlockAnimation.MBJoint joint = new ModelBlockAnimation.MBJoint(info.getName(), part);
-                            Optional<TRSRTransformation> trOp = state.apply(Optional.of(joint));
-                            if(trOp.isPresent() && trOp.get() != TRSRTransformation.identity())
-                            {
-                                float w = info.getWeights().get(i)[0];
-                                tmp = trOp.get().getMatrix();
-                                tmp.mul(w);
-                                m.add(tmp);
-                                weight += w;
-                            }
-                        }
-                    }
-                    if(weight > 1e-5)
-                    {
-                        m.mul(1f / weight);
-                        TRSRTransformation tr = new TRSRTransformation(m);
-                        newTransforms.set(i, tr);
-                    }
-                }
+                newTransforms.add(animation.getPartTransform(state, part, i));
             }
 
             ItemCameraTransforms transforms = model.func_181682_g();
@@ -688,9 +656,7 @@ public class ModelLoader extends ModelBakery
         {
             if(animation.getClips().containsKey(name))
             {
-                Optional<? extends IClip> ret = animation.getClips().get(name);
-                if(ret.isPresent()) return ret;
-                return Optional.of(Clips.IdentityClip.instance);
+                return Optional.<IClip>fromNullable(animation.getClips().get(name));
             }
             return Optional.absent();
         }

@@ -4,13 +4,14 @@ import net.minecraft.block.properties.PropertyBool;
 import net.minecraft.util.ResourceLocation;
 import net.minecraft.world.World;
 import net.minecraftforge.client.model.IModelState;
-import net.minecraftforge.client.model.animation.ModelBlockAnimation.MBJointInfo;
 import net.minecraftforge.common.property.IUnlistedProperty;
+import net.minecraftforge.common.util.JsonUtils;
 
-import com.google.common.base.Optional;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableTable;
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
 
 public class Animation
 {
@@ -91,6 +92,13 @@ public class Animation
         else return missing;
     }
 
+    private static final Gson mbaGson = new GsonBuilder()
+        .registerTypeAdapter(ImmutableList.class, JsonUtils.ImmutableListTypeAdapter.INSTANCE)
+        .registerTypeAdapter(ImmutableMap.class, JsonUtils.ImmutableMapTypeAdapter.INSTANCE)
+        .setPrettyPrinting()
+        .enableComplexMapKeySerialization()
+        .create();
+
     /**
      * Entry point for loading animation tracks associated with vanilla json models.
      */
@@ -98,91 +106,92 @@ public class Animation
     {
         // TODO json
 
-        ImmutableMap<String, MBJointInfo> joints = ImmutableMap.of();
-        ImmutableMap<String, Optional<ModelBlockAnimation.MBClip>> clips = ImmutableMap.of();
+        ImmutableMap<String, ImmutableMap<Integer, float[]>> joints = ImmutableMap.of();
+        ImmutableMap<String, ModelBlockAnimation.MBClip> clips = ImmutableMap.of();
 
         if(armatureLocation.getResourcePath().endsWith("engine_ring"))
         {
-            ModelBlockAnimation.MBJointInfo ring = new ModelBlockAnimation.MBJointInfo("ring", ImmutableMap.of(
-                0, new float[]{ 1 }
-            ));
-            ModelBlockAnimation.MBJointInfo chamber = new ModelBlockAnimation.MBJointInfo("chamber", ImmutableMap.of(
-                1, new float[]{ 1 }
-            ));
-            ModelBlockAnimation.MBJointInfo trunk = new ModelBlockAnimation.MBJointInfo("trunk", ImmutableMap.of(
-                2, new float[]{ 1 }
-            ));
             joints = ImmutableMap.of(
-                "ring", ring,
-                "chamber", chamber,
-                "trunk", trunk
+                "ring", ImmutableMap.of(
+                    0, new float[]{ 1 }
+                ),
+                "chamber", ImmutableMap.of(
+                    1, new float[]{ 1 }
+                ),
+                "trunk", ImmutableMap.of(
+                    2, new float[]{ 1 }
+                )
             );
-            ModelBlockAnimation.MBClip moving = new ModelBlockAnimation.MBClip(ImmutableList.of(
-                new ModelBlockAnimation.MBJointClip(ring, true, ImmutableList.of(
+            ModelBlockAnimation.MBClip moving = new ModelBlockAnimation.MBClip(true, ImmutableMap.of(
+                "ring", ImmutableList.of(
                     new ModelBlockAnimation.MBVariableClip(
                         ModelBlockAnimation.Parameter.Variable.Y,
-                        ModelBlockAnimation.Parameter.Type.Uniform,
-                        ModelBlockAnimation.Parameter.Interpolation.Linear,
+                        ModelBlockAnimation.Parameter.Type.UNIFORM,
+                        ModelBlockAnimation.Parameter.Interpolation.LINEAR,
                         new float[]{ .00f, .08f, .25f, .42f, .50f, .42f, .25f, .08f }
                     ),
                     new ModelBlockAnimation.MBVariableClip(
-                        ModelBlockAnimation.Parameter.Variable.YR,
-                        ModelBlockAnimation.Parameter.Type.Uniform,
-                        ModelBlockAnimation.Parameter.Interpolation.Nearest,
+                        ModelBlockAnimation.Parameter.Variable.YROT,
+                        ModelBlockAnimation.Parameter.Type.UNIFORM,
+                        ModelBlockAnimation.Parameter.Interpolation.NEAREST,
                         new float[]{ 1 }
                     ),
                     new ModelBlockAnimation.MBVariableClip(
-                        ModelBlockAnimation.Parameter.Variable.AR,
-                        ModelBlockAnimation.Parameter.Type.Uniform,
-                        ModelBlockAnimation.Parameter.Interpolation.Linear,
+                        ModelBlockAnimation.Parameter.Variable.ANGLE,
+                        ModelBlockAnimation.Parameter.Type.UNIFORM,
+                        ModelBlockAnimation.Parameter.Interpolation.LINEAR,
                         new float[]{ 0, 120, 240, 0, 120, 240, 0, 120, 240, 0, 120, 240 }
                     )
-                )),
-                /*new ModelBlockAnimation.MBJointClip(chamber, true, ImmutableList.of(
+                ),
+                /*ImmutableList.of(
                     new ModelBlockAnimation.MBVariableClip(
                         ModelBlockAnimation.Parameter.Variable.Y,
                         ModelBlockAnimation.Parameter.Type.Uniform,
                         ModelBlockAnimation.Parameter.Interpolation.Nearest,
                         new float[]{ .0f, .5f }
                     )
-                )),
-                new ModelBlockAnimation.MBJointClip(trunk, true, ImmutableList.of(
+                ),
+                ImmutableList.of(
                     new ModelBlockAnimation.MBVariableClip(
                         ModelBlockAnimation.Parameter.Variable.Y,
                         ModelBlockAnimation.Parameter.Type.Uniform,
                         ModelBlockAnimation.Parameter.Interpolation.Nearest,
                         new float[]{ .0f, -.5f }
                     )
-                )),*/
-                new ModelBlockAnimation.MBJointClip(chamber, true, ImmutableList.of(
+                ),*/
+                "chamber", ImmutableList.of(
                     new ModelBlockAnimation.MBVariableClip(
                         ModelBlockAnimation.Parameter.Variable.SCALE,
-                        ModelBlockAnimation.Parameter.Type.Uniform,
-                        ModelBlockAnimation.Parameter.Interpolation.Nearest,
+                        ModelBlockAnimation.Parameter.Type.UNIFORM,
+                        ModelBlockAnimation.Parameter.Interpolation.NEAREST,
                         new float[]{ 0, 1 }
                     )
-                )),
-                new ModelBlockAnimation.MBJointClip(trunk, true, ImmutableList.of(
+                ),
+                "trunk", ImmutableList.of(
                     new ModelBlockAnimation.MBVariableClip(
                         ModelBlockAnimation.Parameter.Variable.SCALE,
-                        ModelBlockAnimation.Parameter.Type.Uniform,
-                        ModelBlockAnimation.Parameter.Interpolation.Nearest,
+                        ModelBlockAnimation.Parameter.Type.UNIFORM,
+                        ModelBlockAnimation.Parameter.Interpolation.NEAREST,
                         new float[]{ 1, 0 }
                     )
-                ))
+                )
             ));
 
-            clips = ImmutableMap.<String, Optional<ModelBlockAnimation.MBClip>>of(
-                "default", Optional.<ModelBlockAnimation.MBClip>absent(),
-                "moving", Optional.<ModelBlockAnimation.MBClip>of(moving)
+            clips = ImmutableMap.<String, ModelBlockAnimation.MBClip>of(
+                "default", new ModelBlockAnimation.MBClip(false, ImmutableMap.<String, ImmutableList<ModelBlockAnimation.MBVariableClip>>of()),
+                "moving", moving
             );
         }
         ModelBlockAnimation mba = new ModelBlockAnimation(
-            new ResourceLocation("forgedebugmodelanimation", "engine"),
             joints,
             clips
         );
 
+        if(!clips.isEmpty())
+        {
+            String json = mbaGson.toJson(mba);
+            System.out.println(json);
+        }
         return mba;
     }
 }
