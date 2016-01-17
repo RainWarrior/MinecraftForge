@@ -5,13 +5,7 @@ import java.util.concurrent.TimeUnit;
 import net.minecraft.block.state.IBlockState;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.BlockRendererDispatcher;
-import net.minecraft.client.renderer.GlStateManager;
-import net.minecraft.client.renderer.RenderHelper;
-import net.minecraft.client.renderer.Tessellator;
 import net.minecraft.client.renderer.WorldRenderer;
-import net.minecraft.client.renderer.texture.TextureMap;
-import net.minecraft.client.renderer.tileentity.TileEntitySpecialRenderer;
-import net.minecraft.client.renderer.vertex.DefaultVertexFormats;
 import net.minecraft.client.resources.model.IBakedModel;
 import net.minecraft.tileentity.TileEntity;
 import net.minecraft.util.BlockPos;
@@ -22,7 +16,6 @@ import net.minecraftforge.client.model.ISmartBlockModel;
 import net.minecraftforge.common.property.IExtendedBlockState;
 
 import org.apache.commons.lang3.tuple.Pair;
-import org.lwjgl.opengl.GL11;
 
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
@@ -31,7 +24,7 @@ import com.google.common.cache.LoadingCache;
 /**
  * Generic TileEntitySpecialRenderer that works with the Forge model system and animations.
  */
-public class AnimationTESR<T extends TileEntity & IAnimationProvider> extends TileEntitySpecialRenderer<T>
+public class AnimationTESR<T extends TileEntity & IAnimationProvider> extends FastTESR<T>
 {
     protected static BlockRendererDispatcher blockRenderer;
 
@@ -53,7 +46,7 @@ public class AnimationTESR<T extends TileEntity & IAnimationProvider> extends Ti
         return modelCache.getUnchecked(Pair.of(state, modelState));
     }
 
-    public void renderTileEntityAt(T te, double x, double y, double z, float partialTick, int breakStage)
+    public void renderTileEntityFast(T te, double x, double y, double z, float partialTick, int breakStage, WorldRenderer renderer)
     {
         if(blockRenderer == null) blockRenderer = Minecraft.getMinecraft().getBlockRendererDispatcher();
         BlockPos pos = te.getPos();
@@ -70,32 +63,9 @@ public class AnimationTESR<T extends TileEntity & IAnimationProvider> extends Ti
             {
                 IBakedModel model = getModel(exState, te.asm().apply(Animation.getWorldTime(getWorld(), partialTick)));
 
-                Tessellator tessellator = Tessellator.getInstance();
-                WorldRenderer worldrenderer = tessellator.getWorldRenderer();
-                this.bindTexture(TextureMap.locationBlocksTexture);
-                RenderHelper.disableStandardItemLighting();
-                GlStateManager.blendFunc(GL11.GL_SRC_ALPHA, GL11.GL_ONE_MINUS_SRC_ALPHA);
-                GlStateManager.enableBlend();
-                GlStateManager.disableCull();
+                renderer.setTranslation(x - pos.getX(), y - pos.getY(), z - pos.getZ());
 
-                if (Minecraft.isAmbientOcclusionEnabled())
-                {
-                    GlStateManager.shadeModel(GL11.GL_SMOOTH);
-                }
-                else
-                {
-                    GlStateManager.shadeModel(GL11.GL_FLAT);
-                }
-
-                worldrenderer.begin(GL11.GL_QUADS, DefaultVertexFormats.BLOCK);
-                worldrenderer.setTranslation(x - pos.getX(), y - pos.getY(), z - pos.getZ());
-
-                blockRenderer.getBlockModelRenderer().renderModel(world, model, state, pos, worldrenderer, false);
-
-                worldrenderer.setTranslation(0, 0, 0);
-                tessellator.draw();
-
-                RenderHelper.enableStandardItemLighting();
+                blockRenderer.getBlockModelRenderer().renderModel(world, model, state, pos, renderer, false);
             }
         }
     }

@@ -56,7 +56,6 @@ import net.minecraftforge.fml.common.registry.GameRegistry;
 import org.apache.commons.lang3.tuple.Pair;
 
 import com.google.common.base.Objects;
-import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableMap;
 
 @Mod(modid = ModelAnimationDebug.MODID, version = ModelAnimationDebug.VERSION)
@@ -120,7 +119,7 @@ public class ModelAnimationDebug
 
                 @Override
                 public TileEntity createTileEntity(World world, IBlockState state) {
-                    return new Chest(state);
+                    return new Chest();
                 }
 
                 @Override
@@ -275,7 +274,7 @@ public class ModelAnimationDebug
         private final AnimationStateMachine asm;
         private float cycleLength = 4;
 
-        public Chest(IBlockState state) {
+        public Chest() {
             asm = Animation.load(new ResourceLocation("forgedebugmodelanimation", "afsm/block/engine"), ImmutableMap.<String, IParameter>of(
                 "worldToCycle", new WorldToCycle()
                 {
@@ -292,6 +291,12 @@ public class ModelAnimationDebug
                     }
                 }
             ));
+        }
+
+        @Override
+        public boolean hasFastRenderer()
+        {
+            return true;
         }
 
         /*public IExtendedBlockState getState(IExtendedBlockState state) {
