@@ -2,6 +2,8 @@ package net.minecraftforge.client.model.animation;
 
 import java.io.IOException;
 
+import net.minecraft.client.resources.model.ModelResourceLocation;
+import net.minecraft.util.IStringSerializable;
 import net.minecraft.util.MathHelper;
 import net.minecraft.util.ResourceLocation;
 import net.minecraftforge.client.model.IModel;
@@ -11,8 +13,16 @@ import net.minecraftforge.client.model.ModelLoaderRegistry;
 import net.minecraftforge.client.model.TRSRTransformation;
 import net.minecraftforge.fml.common.FMLLog;
 
+import org.apache.commons.lang3.NotImplementedException;
+
 import com.google.common.base.Objects;
 import com.google.common.base.Optional;
+import com.google.gson.Gson;
+import com.google.gson.TypeAdapter;
+import com.google.gson.TypeAdapterFactory;
+import com.google.gson.reflect.TypeToken;
+import com.google.gson.stream.JsonReader;
+import com.google.gson.stream.JsonWriter;
 
 /**
  * Various implementations of IClip, and utility methods.
@@ -22,13 +32,18 @@ public class Clips
     /**
      * Clip that does nothing.
      */
-    public static enum IdentityClip implements IClip
+    public static enum IdentityClip implements IClip, IStringSerializable
     {
         instance;
 
         public IJointClip apply(IJoint joint)
         {
             return JointClips.IdentityJointClip.instance;
+        }
+
+        public String getName()
+        {
+            return "identity";
         }
     }
 
@@ -46,7 +61,7 @@ public class Clips
                 Optional<? extends IClip> clip = ((IAnimatedModel)model).getClip(clipName);
                 if(clip.isPresent())
                 {
-                    return clip.get();
+                    return new ModelClip(clip.get(), modelLocation, clipName);
                 }
                 FMLLog.getLogger().error("Unable to find clip " + clipName + " in the model " + modelLocation);
             }
@@ -55,7 +70,30 @@ public class Clips
         {
             FMLLog.getLogger().error("Unable to load model" + modelLocation + " while loading clip " + clipName, e);
         }
-        return IdentityClip.instance;
+        // FIXME: missing clip?
+        return new ModelClip(IdentityClip.instance, modelLocation, clipName);
+    }
+
+    /**
+     * Wrapper for model clips; useful for debugging and serialization;
+     */
+    public static final class ModelClip implements IClip
+    {
+        private final IClip childClip;
+        private final ResourceLocation modelLocation;
+        private final String clipName;
+
+        public ModelClip(IClip childClip, ResourceLocation modelLocation, String clipName)
+        {
+            this.childClip = childClip;
+            this.modelLocation = modelLocation;
+            this.clipName = clipName;
+        }
+
+        public IJointClip apply(IJoint joint)
+        {
+            return childClip.apply(joint);
+        }
     }
 
     /**
@@ -104,32 +142,53 @@ public class Clips
         }
     }
 
-    public static IClipProvider createClipLength(final IClip clip, final IParameter length)
+    public static final class ClipLengthProvider implements IClipProvider
     {
-        return new IClipProvider()
+        private final IClip clip;
+        private final IParameter length;
+
+        public ClipLengthProvider(IClip clip, IParameter length)
         {
-            public ClipLength apply(float time)
-            {
-                return new ClipLength(clip, length.apply(time));
-            }
-        };
+            this.clip = clip;
+            this.length = length;
+        }
+
+        public ClipLength apply(float time)
+        {
+            return new ClipLength(clip, length.apply(time));
+        }
     }
 
-    public static ClipLength createSlerpClip(IClip from, IClip to, IParameter input, float start, float length)
+    public static IClipProvider createClipLength(IClip clip, IParameter length)
     {
-        IParameter progress = new Parameters.LinearParameter(1f / length, -start / length);
-        return new ClipLength(new SlerpClip(from, to, input, progress), length);
+        return new ClipLengthProvider(clip, length);
+    }
+
+    public static final class ClipSlerpProvider implements IClipProvider
+    {
+        private final IClip from;
+        private final IClip to;
+        private final IParameter input;
+        private final float length;
+
+        public ClipSlerpProvider(IClip from, IClip to, IParameter input, float length)
+        {
+            this.from = from;
+            this.to = to;
+            this.input = input;
+            this.length = length;
+        }
+
+        public ClipLength apply(float start)
+        {
+            IParameter progress = new Parameters.LinearParameter(1f / length, -start / length);
+            return new ClipLength(new SlerpClip(from, to, input, progress), length);
+        }
     }
 
     public static IClipProvider slerpFactory(final IClip from, final IClip to, final IParameter input, final float length)
     {
-        return new IClipProvider()
-        {
-            public ClipLength apply(float time)
-            {
-                return createSlerpClip(from, to, input, time, length);
-            }
-        };
+        return new ClipSlerpProvider(from, to, input, length);
     }
 
     /**
@@ -232,5 +291,163 @@ public class Clips
                 return Optional.of(clip.apply(joint.getParent().get()).apply(time).compose(clip.apply(joint).apply(time)).compose(joint.getInvBindPose()));
             }
         };
+    }
+
+    /**
+     * Reference to another clip.
+     * Should only exist during loading.
+     */
+    public static final class ClipReference implements IClip, IStringSerializable
+    {
+        private final String clipName;
+
+        public ClipReference(String clipName)
+        {
+            this.clipName = clipName;
+        }
+
+        public IJointClip apply(final IJoint joint)
+        {
+            throw new NotImplementedException("ClipReference shouldn't exist outside the loading phase.");
+        }
+
+        public String getName()
+        {
+            return clipName;
+        }
+    }
+
+    public static enum CommonClipTypeAdapterFactory implements TypeAdapterFactory
+    {
+        INSTANCE;
+
+        @SuppressWarnings("unchecked")
+        public <T> TypeAdapter<T> create(Gson gson, TypeToken<T> type)
+        {
+            if(type.getRawType() != IClip.class)
+            {
+                return null;
+            }
+
+            final TypeAdapter<IParameter> parameterAdapter = gson.getAdapter(IParameter.class);
+
+            return (TypeAdapter<T>)new TypeAdapter<IClip>()
+            {
+                public void write(JsonWriter out, IClip clip) throws IOException
+                {
+                    if(clip instanceof IStringSerializable)
+                    {
+                        out.value("#" + ((IStringSerializable)clip).getName());
+                        return;
+                    }
+                    else if(clip instanceof TimeClip)
+                    {
+                        out.beginArray();
+                        TimeClip timeClip = (TimeClip)clip;
+                        write(out, timeClip.childClip);
+                        parameterAdapter.write(out, timeClip.time);
+                        out.endArray();
+                        return;
+                    }
+                    else if(clip instanceof ModelClip)
+                    {
+                        ModelClip modelClip = (ModelClip)clip;
+                        out.value(modelClip.modelLocation + "@" + modelClip.clipName);
+                        return;
+                    }
+                    // TODO custom clip writing?
+                    throw new NotImplementedException("Clip to json: " + clip);
+                }
+
+                public IClip read(JsonReader in) throws IOException
+                {
+                    switch(in.peek())
+                    {
+                        case BEGIN_ARRAY:
+                            in.beginArray();
+                            IClip childClip = read(in);
+                            IParameter time = parameterAdapter.read(in);
+                            in.endArray();
+                            return new TimeClip(childClip, time);
+                        case STRING:
+                            String name = in.nextString();
+                            if(name.equals("#identity"))
+                            {
+                                return IdentityClip.instance;
+                            }
+                            if(name.startsWith("#"))
+                            {
+                                return new ClipReference(name.substring(1));
+                            }
+                            else
+                            {
+                                int at = name.lastIndexOf('@');
+                                String location = name.substring(0, at);
+                                String clipName = name.substring(at + 1, name.length());
+                                ResourceLocation model;
+                                if(location.indexOf('#') != -1)
+                                {
+                                    model = new ModelResourceLocation(location);
+                                }
+                                else
+                                {
+                                    model = new ResourceLocation(location);
+                                }
+                                return getModelClipNode(model, clipName);
+                            }
+                        default:
+                            throw new IOException("expected Clip, got " + in.peek());
+                    }
+                }
+            };
+        }
+    }
+
+    public static enum CommonClipProviderTypeAdapterFactory implements TypeAdapterFactory
+    {
+        INSTANCE;
+
+        @SuppressWarnings("unchecked")
+        public <T> TypeAdapter<T> create(Gson gson, TypeToken<T> type)
+        {
+            if(type.getRawType() != IClipProvider.class)
+            {
+                return null;
+            }
+
+            final TypeAdapter<IClip> clipAdapter = gson.getAdapter(IClip.class);
+            final TypeAdapter<IParameter> parameterAdapter = gson.getAdapter(IParameter.class);
+
+            return (TypeAdapter<T>)new TypeAdapter<IClipProvider>()
+            {
+                public void write(JsonWriter out, IClipProvider clipProvider) throws IOException
+                {
+                    if(clipProvider instanceof ClipLengthProvider)
+                    {
+                        ClipLengthProvider provider = (ClipLengthProvider)clipProvider;
+                        out.beginArray();
+                        clipAdapter.write(out, provider.clip);
+                        parameterAdapter.write(out, provider.length);
+                        out.endArray();
+                    }
+                    else if(clipProvider instanceof ClipSlerpProvider)
+                    {
+                        ClipSlerpProvider provider = (ClipSlerpProvider)clipProvider;
+                        out.beginArray();
+                        clipAdapter.write(out, provider.from);
+                        clipAdapter.write(out, provider.to);
+                        parameterAdapter.write(out, provider.input);
+                        out.value(provider.length);
+                        out.endArray();
+                    }
+                }
+
+                public IClipProvider read(JsonReader in) throws IOException
+                {
+                    // TODO Auto-generated method stub
+                    return null;
+                }
+            };
+        }
     }
 }

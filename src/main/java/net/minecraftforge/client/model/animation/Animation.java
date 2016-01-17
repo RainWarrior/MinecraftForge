@@ -1,6 +1,10 @@
 package net.minecraftforge.client.model.animation;
 
+import java.io.IOException;
+import java.lang.reflect.ParameterizedType;
+
 import net.minecraft.block.properties.PropertyBool;
+import net.minecraft.util.IStringSerializable;
 import net.minecraft.util.ResourceLocation;
 import net.minecraft.world.World;
 import net.minecraftforge.client.model.IModelState;
@@ -10,8 +14,14 @@ import net.minecraftforge.common.util.JsonUtils;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableTable;
+import com.google.common.collect.Table;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+import com.google.gson.TypeAdapter;
+import com.google.gson.TypeAdapterFactory;
+import com.google.gson.reflect.TypeToken;
+import com.google.gson.stream.JsonReader;
+import com.google.gson.stream.JsonWriter;
 
 public class Animation
 {
@@ -40,10 +50,20 @@ public class Animation
         ImmutableTable.<String, String, IClipProvider>of(),
         "missingno");
 
+    private static final Gson asmGson = new GsonBuilder()
+        .registerTypeAdapterFactory(Clips.CommonClipTypeAdapterFactory.INSTANCE)
+        .registerTypeAdapterFactory(Clips.CommonClipProviderTypeAdapterFactory.INSTANCE)
+        .registerTypeAdapterFactory(Parameters.CommonParameterTypeAdapterFactory.INSTANCE)
+        .registerTypeAdapterFactory(ClipProviderTableTypeAdapterFactory.INSTANCE)
+        .setPrettyPrinting()
+        .enableComplexMapKeySerialization()
+        .disableHtmlEscaping()
+        .create();
+
     /**
      * Entry point for loading animation state machines.
      */
-    public static AnimationStateMachine load(ResourceLocation location, ImmutableMap<String, IParameter> customParameters)
+    public static <P extends IParameter & IStringSerializable> AnimationStateMachine load(ResourceLocation location, ImmutableMap<String, P> customParameters)
     {
         // hardcoded test case for now, JSON later
 
@@ -68,26 +88,33 @@ public class Animation
         }
         else if(location.equals(new ResourceLocation("forgedebugmodelanimation", "afsm/block/engine")))
         {
-            final IParameter worldToCycle = customParameters.getOrDefault("worldToCycle", Parameters.NoopParameter.instance);
-            final IParameter roundCycle = customParameters.getOrDefault("roundCycle", Parameters.NoopParameter.instance);
+            final IParameter worldToCycle = customParameters.containsKey("worldToCycle") ? customParameters.get("worldToCycle") : Parameters.NoopParameter.instance;
+            final IParameter roundCycle = customParameters.containsKey("roundCycle") ? customParameters.get("roundCycle") : Parameters.NoopParameter.instance;
 
             final IClip default_ = Clips.getModelClipNode(new ResourceLocation("forgedebugmodelanimation", "block/engine_ring"), "default");
             IClip movingTmp = Clips.getModelClipNode(new ResourceLocation("forgedebugmodelanimation", "block/engine_ring"), "moving");
             final IClip moving = new Clips.TimeClip(movingTmp, worldToCycle);
 
-            IClipProvider d2m = Clips.createClipLength(default_, roundCycle);
-            IClipProvider m2d = Clips.createClipLength(moving, roundCycle);
+            IClipProvider d2m = Clips.createClipLength(new Clips.ClipReference("default"), roundCycle);
+            IClipProvider m2d = Clips.createClipLength(new Clips.ClipReference("moving"), roundCycle);
 
             ImmutableTable.Builder<String, String, IClipProvider> builder = ImmutableTable.builder();
             builder.put("default", "moving", d2m);
             builder.put("moving", "default", m2d);
 
-            return new AnimationStateMachine(
+            /*System.out.println("default: " + asmGson.toJson(default_, IClip.class));
+            System.out.println("moving: " + asmGson.toJson(moving, IClip.class));
+            System.out.println("d2m: " + asmGson.toJson(d2m, IClipProvider.class));
+            System.out.println("m2d: " + asmGson.toJson(m2d, IClipProvider.class));*/
+            AnimationStateMachine afsm = new AnimationStateMachine(
                 ImmutableMap.of("default", default_, "moving", moving),
                 ImmutableList.of("default", "moving"),
                 builder.build(),
                 "moving"
             );
+            System.out.println("afsm: " + asmGson.toJson(afsm));
+            afsm.initialize();
+            return afsm;
         }
         else return missing;
     }
@@ -97,6 +124,7 @@ public class Animation
         .registerTypeAdapter(ImmutableMap.class, JsonUtils.ImmutableMapTypeAdapter.INSTANCE)
         .setPrettyPrinting()
         .enableComplexMapKeySerialization()
+        .disableHtmlEscaping()
         .create();
 
     /**
@@ -193,5 +221,48 @@ public class Animation
             System.out.println(json);
         }
         return mba;
+    }
+
+    public static enum ClipProviderTableTypeAdapterFactory implements TypeAdapterFactory
+    {
+        INSTANCE;
+
+        @SuppressWarnings("unchecked")
+        public <T> TypeAdapter<T> create(Gson gson, TypeToken<T> typeToken)
+        {
+            if(typeToken.getRawType() != ImmutableTable.class || !(typeToken.getType() instanceof ParameterizedType))
+            {
+                return null;
+            }
+            ParameterizedType type = (ParameterizedType)typeToken.getType();
+            if(
+                type.getActualTypeArguments()[0] != String.class ||
+                type.getActualTypeArguments()[1] != String.class ||
+                type.getActualTypeArguments()[2] != IClipProvider.class) {
+                return null;
+            }
+
+            final TypeAdapter<IClipProvider> clipProviderAdapter = gson.getAdapter(IClipProvider.class);
+
+            return (TypeAdapter<T>)new TypeAdapter<ImmutableTable<String, String, IClipProvider>>()
+            {
+                public void write(JsonWriter out, ImmutableTable<String, String, IClipProvider> table) throws IOException
+                {
+                    out.beginObject();
+                    for(Table.Cell<String, String, IClipProvider> cell : table.cellSet())
+                    {
+                        out.name(cell.getRowKey() + " -> " + cell.getColumnKey());
+                        clipProviderAdapter.write(out, cell.getValue());
+                    }
+                    out.endObject();
+                }
+
+                public ImmutableTable<String, String, IClipProvider> read(JsonReader in) throws IOException
+                {
+                    // TODO Auto-generated method stub
+                    return null;
+                }
+            };
+        }
     }
 }

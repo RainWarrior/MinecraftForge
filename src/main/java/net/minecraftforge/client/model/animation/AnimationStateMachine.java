@@ -1,10 +1,12 @@
 package net.minecraftforge.client.model.animation;
 
+import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
-import org.apache.commons.lang3.tuple.Pair;
-
 import net.minecraftforge.client.model.IModelState;
+import net.minecraftforge.client.model.animation.Clips.ClipReference;
+
+import org.apache.commons.lang3.tuple.Pair;
 
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
@@ -12,6 +14,7 @@ import com.google.common.cache.LoadingCache;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableTable;
+import com.google.gson.annotations.SerializedName;
 
 /**
  * Main controller for the animation logic.
@@ -19,9 +22,19 @@ import com.google.common.collect.ImmutableTable;
  */
 public class AnimationStateMachine
 {
-    private final ImmutableMap<String, ? extends IClip> clips;
+    @SerializedName("clips")
+    private final ImmutableMap<String, IClip> clipsRaw;
+    private transient ImmutableMap<String, IClip> clips;
     private final ImmutableList<String> states;
-    private final ImmutableTable<String, String, ? extends IClipProvider> transitions;
+    private final ImmutableTable<String, String, IClipProvider> transitions;
+    @SerializedName("start_state")
+    private final String startState;
+
+    private transient String currentStateName;
+    private transient IClip currentState;
+    private transient ClipLength currentTransition = null;
+    private transient boolean transitioning = false;
+    private transient float transitionStart = Float.MIN_VALUE;
 
     private static final LoadingCache<Pair<? extends IClip, Float>, IModelState> clipCache = CacheBuilder.newBuilder()
         .maximumSize(100)
@@ -35,25 +48,46 @@ public class AnimationStateMachine
             }
         });
 
-    public AnimationStateMachine(ImmutableMap<String, IClip> clips, ImmutableList<String> states, ImmutableTable<String, String, ? extends IClipProvider> transitions, String startState)
+    protected AnimationStateMachine()
     {
-        this.clips = clips;
+        this(ImmutableMap.<String, IClip>of(), ImmutableList.<String>of(), ImmutableTable.<String, String, IClipProvider>of(), null);
+    }
+
+    public AnimationStateMachine(ImmutableMap<String, IClip> clipsRaw, ImmutableList<String> states, ImmutableTable<String, String, IClipProvider> transitions, String startState)
+    {
+        this.clipsRaw = clipsRaw;
         this.states = states;
         this.transitions = transitions;
+        this.startState = startState;
+    }
+
+    /**
+     * Post-loading initialization method. Resolves clip references.
+     */
+    public void initialize()
+    {
+        // resolving all name clip references
+        ImmutableMap.Builder<String, IClip> builder = ImmutableMap.builder();
+        for(Map.Entry<String, IClip> entry : clipsRaw.entrySet())
+        {
+            IClip clip = entry.getValue();
+            while(clip instanceof ClipReference)
+            {
+                String name = ((ClipReference)clip).getName();
+                clip = clipsRaw.get(name);
+            }
+            builder.put(entry.getKey(), clip);
+        }
+        clips = builder.build();
+        // setting the starting state
         IClip state = clips.get(startState);
         if(!clips.containsKey(startState) || !states.contains(startState))
         {
             throw new IllegalStateException("unknown state: " + startState);
         }
-        this.currentStateName = startState;
-        this.currentState = state;
+        currentStateName = startState;
+        currentState = state;
     }
-
-    private String currentStateName;
-    private IClip currentState;
-    private ClipLength currentTransition = null;
-    private boolean transitioning = false;
-    private float transitionStart = Float.MIN_VALUE;
 
     /**
      * Sample the state at the current time.
