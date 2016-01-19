@@ -9,10 +9,12 @@
   ],
   "transitions": {
     "default -> moving": [
+      "length",
       "#default",
       "#roundCycle"
     ],
     "moving -> default": [
+      "length",
       "#moving",
       "#roundCycle"
     ]

@@ -22,7 +22,6 @@ import net.minecraft.item.Item;
 import net.minecraft.tileentity.TileEntity;
 import net.minecraft.util.BlockPos;
 import net.minecraft.util.EnumFacing;
-import net.minecraft.util.IStringSerializable;
 import net.minecraft.util.ResourceLocation;
 import net.minecraft.world.IBlockAccess;
 import net.minecraft.world.World;
@@ -229,7 +228,7 @@ public class ModelAnimationDebug
     @EventHandler
     public void preInit(FMLPreInitializationEvent event) { proxy.preInit(event); }
 
-    private static abstract class CycleValue implements ITimeValue, IStringSerializable
+    private static abstract class CycleValue implements ITimeValue
     {
         protected abstract float getCycleLength();
 
@@ -259,12 +258,6 @@ public class ModelAnimationDebug
         {
             return input / getCycleLength();
         }
-
-        @Override
-        public String getName()
-        {
-            return "worldToCycle";
-        }
     }
 
     private static abstract class RoundCycle extends CycleValue
@@ -274,12 +267,6 @@ public class ModelAnimationDebug
             float l = getCycleLength();
             return (float)Math.ceil(input / l) * l - input;
         }
-
-        @Override
-        public String getName()
-        {
-            return "roundCycle";
-        }
     }
 
     private static class Chest extends TileEntity implements IAnimationProvider
@@ -288,7 +275,7 @@ public class ModelAnimationDebug
         private float cycleLength = 4;
 
         public Chest() {
-            asm = Animation.INSTANCE.load(new ResourceLocation(MODID.toLowerCase(), "asms/block/engine.json"), ImmutableMap.<String, CycleValue>of(
+            asm = Animation.INSTANCE.load(new ResourceLocation(MODID.toLowerCase(), "asms/block/engine.json"), ImmutableMap.<String, ITimeValue>of(
                 "worldToCycle", new WorldToCycle()
                 {
                     protected float getCycleLength()
@@ -349,7 +336,7 @@ public class ModelAnimationDebug
         {
             super(world);
             setSize(1, 1);
-            asm = Animation.INSTANCE.load(new ResourceLocation(MODID.toLowerCase(), "asms/block/engine.json"), ImmutableMap.<String, CycleValue>of(
+            asm = Animation.INSTANCE.load(new ResourceLocation(MODID.toLowerCase(), "asms/block/engine.json"), ImmutableMap.<String, ITimeValue>of(
                 "worldToCycle", new WorldToCycle()
                 {
                     protected float getCycleLength()

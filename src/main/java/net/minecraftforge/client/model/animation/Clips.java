@@ -15,6 +15,7 @@ import net.minecraftforge.fml.common.FMLLog;
 
 import org.apache.commons.lang3.NotImplementedException;
 
+import com.google.common.base.Function;
 import com.google.common.base.Objects;
 import com.google.common.base.Optional;
 import com.google.gson.Gson;
@@ -93,6 +94,25 @@ public class Clips
         public IJointClip apply(IJoint joint)
         {
             return childClip.apply(joint);
+        }
+
+        @Override
+        public int hashCode()
+        {
+            return Objects.hashCode(modelLocation, clipName);
+        }
+
+        @Override
+        public boolean equals(Object obj)
+        {
+            if (this == obj)
+                return true;
+            if (obj == null)
+                return false;
+            if (getClass() != obj.getClass())
+                return false;
+            ModelClip other = (ModelClip) obj;
+            return Objects.equal(modelLocation, other.modelLocation) && Objects.equal(clipName, other.clipName);
         }
     }
 
@@ -245,32 +265,80 @@ public class Clips
     }
 
     /**
-     * Reference to another clip.
-     * Should only exist during loading.
-     */
+      * Reference to another clip.
+      * Should only exist during debugging.
+      */
     public static final class ClipReference implements IClip, IStringSerializable
     {
         private final String clipName;
+        private final Function<String, IClip> clipResolver;
+        private IClip clip;
 
-        public ClipReference(String clipName)
+        public ClipReference(String clipName, Function<String, IClip> clipResolver)
         {
             this.clipName = clipName;
+            this.clipResolver = clipResolver;
+        }
+
+        private void resolve()
+        {
+            if(clip == null)
+            {
+                if(clipResolver != null)
+                {
+                    clip = clipResolver.apply(clipName);
+                }
+                if(clip == null)
+                {
+                    throw new IllegalArgumentException("Couldn't resolve clip " + clipName);
+                }
+            }
         }
 
         public IJointClip apply(final IJoint joint)
         {
-            throw new NotImplementedException("ClipReference shouldn't exist outside the loading phase.");
+            resolve();
+            return clip.apply(joint);
         }
 
         public String getName()
         {
             return clipName;
         }
+
+        @Override
+        public int hashCode()
+        {
+            resolve();
+            return clip.hashCode();
+        }
+
+        @Override
+        public boolean equals(Object obj)
+        {
+            if (this == obj)
+                return true;
+            if (obj == null)
+                return false;
+            if (getClass() != obj.getClass())
+                return false;
+            ClipReference other = (ClipReference) obj;
+            resolve();
+            other.resolve();
+            return Objects.equal(clip, other.clip);
+        }
     }
 
     public static enum CommonClipTypeAdapterFactory implements TypeAdapterFactory
     {
         INSTANCE;
+
+        private final ThreadLocal<Function<String, IClip>> clipResolver = new ThreadLocal<Function<String, IClip>>();
+
+        public void setClipResolver(Function<String, IClip> clipResolver)
+        {
+            this.clipResolver.set(clipResolver);
+        }
 
         @SuppressWarnings("unchecked")
         public <T> TypeAdapter<T> create(Gson gson, TypeToken<T> type)
@@ -323,23 +391,23 @@ public class Clips
                             in.endArray();
                             return new TimeClip(childClip, time);
                         case STRING:
-                            String name = in.nextString();
+                            String string = in.nextString();
                             // IdentityClip
-                            if(name.equals("#identity"))
+                            if(string.equals("#identity"))
                             {
                                 return IdentityClip.instance;
                             }
-                            // ClipReference
-                            if(name.startsWith("#"))
+                            // Clip reference
+                            if(string.startsWith("#"))
                             {
-                                return new ClipReference(name.substring(1));
+                                return new ClipReference(string.substring(1), clipResolver.get());
                             }
                             // ModelClip
                             else
                             {
-                                int at = name.lastIndexOf('@');
-                                String location = name.substring(0, at);
-                                String clipName = name.substring(at + 1, name.length());
+                                int at = string.lastIndexOf('@');
+                                String location = string.substring(0, at);
+                                String clipName = string.substring(at + 1, string.length());
                                 ResourceLocation model;
                                 if(location.indexOf('#') != -1)
                                 {

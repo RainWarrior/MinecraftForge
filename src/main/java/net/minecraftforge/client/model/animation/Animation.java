@@ -12,7 +12,6 @@ import net.minecraft.block.properties.PropertyBool;
 import net.minecraft.client.resources.IResource;
 import net.minecraft.client.resources.IResourceManager;
 import net.minecraft.client.resources.IResourceManagerReloadListener;
-import net.minecraft.util.IStringSerializable;
 import net.minecraft.util.ResourceLocation;
 import net.minecraft.world.World;
 import net.minecraftforge.client.model.IModelState;
@@ -22,12 +21,16 @@ import net.minecraftforge.fml.common.FMLLog;
 
 import org.apache.logging.log4j.Level;
 
+import com.google.common.base.Function;
+import com.google.common.base.Functions;
+import com.google.common.base.Joiner;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableTable;
 import com.google.common.collect.Table;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+import com.google.gson.JsonParseException;
 import com.google.gson.TypeAdapter;
 import com.google.gson.TypeAdapterFactory;
 import com.google.gson.reflect.TypeToken;
@@ -67,10 +70,12 @@ public enum Animation implements IResourceManagerReloadListener
         "missingno");
 
     {
-        missing.initialize(ImmutableMap.<String, TimeValues.IdentityValue>of());
+        missing.initialize();
     }
 
     private final Gson asmGson = new GsonBuilder()
+        .registerTypeAdapter(ImmutableList.class, JsonUtils.ImmutableListTypeAdapter.INSTANCE)
+        .registerTypeAdapter(ImmutableMap.class, JsonUtils.ImmutableMapTypeAdapter.INSTANCE)
         .registerTypeAdapterFactory(Clips.CommonClipTypeAdapterFactory.INSTANCE)
         .registerTypeAdapterFactory(ClipProviders.CommonClipProviderTypeAdapterFactory.INSTANCE)
         .registerTypeAdapterFactory(TimeValues.CommonTimeValueTypeAdapterFactory.INSTANCE)
@@ -80,27 +85,51 @@ public enum Animation implements IResourceManagerReloadListener
         .disableHtmlEscaping()
         .create();
 
+    private static final class ClipResolver implements Function<String, IClip>
+    {
+        private AnimationStateMachine asm;
+
+        public IClip apply(String name)
+        {
+            return asm.getClips().get(name);
+        }
+    }
+
     /**
      * Entry point for loading animation state machines.
      */
-    public <P extends ITimeValue & IStringSerializable> AnimationStateMachine load(ResourceLocation location, ImmutableMap<String, P> customParameters)
+    public AnimationStateMachine load(ResourceLocation location, ImmutableMap<String, ITimeValue> customParameters)
     {
-        /*try
+        try
         {
+            ClipResolver clipResolver = new ClipResolver();
+            Clips.CommonClipTypeAdapterFactory.INSTANCE.setClipResolver(clipResolver);
+            TimeValues.CommonTimeValueTypeAdapterFactory.INSTANCE.setValueResolver(Functions.forMap(customParameters));
             IResource resource = manager.getResource(location);
             AnimationStateMachine asm = asmGson.fromJson(new InputStreamReader(resource.getInputStream(), StandardCharsets.UTF_8), AnimationStateMachine.class);
-            asm.initialize(customParameters);
-            String json = mbaGson.toJson(asm);
-            System.out.println(location + ": " + json);
+            clipResolver.asm = asm;
+            asm.initialize();
+            //String json = asmGson.toJson(asm);
+            //System.out.println(location + ": " + json);
             return asm;
         }
         catch(IOException e)
         {
             FMLLog.log(Level.ERROR, e, "Exception loading Animation State Machine %s, skipping", location);
             return missing;
-        }*/
+        }
+        catch(JsonParseException e)
+        {
+            FMLLog.log(Level.ERROR, e, "Exception loading Animation State Machine %s, skipping", location);
+            return missing;
+        }
+        finally
+        {
+            Clips.CommonClipTypeAdapterFactory.INSTANCE.setClipResolver(null);
+            TimeValues.CommonTimeValueTypeAdapterFactory.INSTANCE.setValueResolver(null);
+        }
 
-        if(location.equals(new ResourceLocation("forgedebugmodelanimation", "asms/block/chest.json")))
+        /*if(location.equals(new ResourceLocation("forgedebugmodelanimation", "asms/block/chest.json")))
         {
             IClip b3d = Clips.getModelClipNode(new ResourceLocation("forgedebugmodelloaderregistry", "block/chest.b3d"), "main");
             IClip closed = new Clips.TimeClip(b3d, new TimeValues.ConstValue(0));
@@ -118,7 +147,7 @@ public enum Animation implements IResourceManagerReloadListener
                 builder.build(),
                 "closed"
             );
-            afsm.initialize(customParameters);
+            afsm.initialize();
             return afsm;
         }
         else if(location.equals(new ResourceLocation("forgedebugmodelanimation", "asms/block/engine.json")))
@@ -146,10 +175,10 @@ public enum Animation implements IResourceManagerReloadListener
                 "moving"
             );
             System.out.println("afsm: " + asmGson.toJson(afsm));
-            afsm.initialize(customParameters);
+            afsm.initialize();
             return afsm;
         }
-        else return missing;
+        else return missing;*/
     }
 
     private final Gson mbaGson = new GsonBuilder()
@@ -185,6 +214,11 @@ public enum Animation implements IResourceManagerReloadListener
             return mba;
         }
         catch(IOException e)
+        {
+            FMLLog.log(Level.ERROR, e, "Exception loading vanilla model aniamtion %s, skipping", armatureLocation);
+            return defaultModelBlockAnimation;
+        }
+        catch(JsonParseException e)
         {
             FMLLog.log(Level.ERROR, e, "Exception loading vanilla model aniamtion %s, skipping", armatureLocation);
             return defaultModelBlockAnimation;
@@ -299,6 +333,7 @@ public enum Animation implements IResourceManagerReloadListener
                 type.getActualTypeArguments()[2] != IClipProvider.class) {
                 return null;
             }
+            System.out.println("ClipProviderFactory OK");
 
             final TypeAdapter<IClipProvider> clipProviderAdapter = gson.getAdapter(IClipProvider.class);
 
@@ -328,7 +363,7 @@ public enum Animation implements IResourceManagerReloadListener
                             throw new IOException("Expected pair of clip names, got \"" + key + "\"");
                         }
                         String from = matcher.group(1);
-                        String to = matcher.group(1);
+                        String to = matcher.group(2);
                         IClipProvider provider = clipProviderAdapter.read(in);
                         builder.put(from, to, provider);
                     }

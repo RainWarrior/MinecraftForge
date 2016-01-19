@@ -1,11 +1,8 @@
 package net.minecraftforge.client.model.animation;
 
-import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
-import net.minecraft.util.IStringSerializable;
 import net.minecraftforge.client.model.IModelState;
-import net.minecraftforge.client.model.animation.Clips.ClipReference;
 
 import org.apache.commons.lang3.tuple.Pair;
 
@@ -23,9 +20,7 @@ import com.google.gson.annotations.SerializedName;
  */
 public class AnimationStateMachine
 {
-    @SerializedName("clips")
-    private final ImmutableMap<String, IClip> clipsRaw;
-    private transient ImmutableMap<String, IClip> clips;
+    private final ImmutableMap<String, IClip> clips;
     private final ImmutableList<String> states;
     private final ImmutableTable<String, String, IClipProvider> transitions;
     @SerializedName("start_state")
@@ -54,34 +49,27 @@ public class AnimationStateMachine
         this(ImmutableMap.<String, IClip>of(), ImmutableList.<String>of(), ImmutableTable.<String, String, IClipProvider>of(), null);
     }
 
-    public AnimationStateMachine(ImmutableMap<String, IClip> clipsRaw, ImmutableList<String> states, ImmutableTable<String, String, IClipProvider> transitions, String startState)
+    public AnimationStateMachine(ImmutableMap<String, IClip> clips, ImmutableList<String> states, ImmutableTable<String, String, IClipProvider> transitions, String startState)
     {
-        this.clipsRaw = clipsRaw;
+        this.clips = clips;
         this.states = states;
         this.transitions = transitions;
         this.startState = startState;
     }
 
     /**
-     * Post-loading initialization method. Resolves clip and parameter references.
+     * Used during resolution of clip references.
      */
-    public <P extends ITimeValue & IStringSerializable> void initialize(ImmutableMap<String, P> customParameters)
+    ImmutableMap<String, IClip> getClips()
     {
-        // FIXME: resolution of custom parameters
-        // FIXME: deep resolution of clip references
-        // resolving all name clip references
-        ImmutableMap.Builder<String, IClip> builder = ImmutableMap.builder();
-        for(Map.Entry<String, IClip> entry : clipsRaw.entrySet())
-        {
-            IClip clip = entry.getValue();
-            while(clip instanceof ClipReference)
-            {
-                String name = ((ClipReference)clip).getName();
-                clip = clipsRaw.get(name);
-            }
-            builder.put(entry.getKey(), clip);
-        }
-        clips = builder.build();
+        return clips;
+    }
+
+    /**
+     * Post-loading initialization method.
+     */
+    public void initialize()
+    {
         // setting the starting state
         IClip state = clips.get(startState);
         if(!clips.containsKey(startState) || !states.contains(startState))

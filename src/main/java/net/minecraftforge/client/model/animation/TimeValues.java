@@ -2,10 +2,9 @@ package net.minecraftforge.client.model.animation;
 
 import java.io.IOException;
 
-import org.apache.commons.lang3.NotImplementedException;
-
 import net.minecraft.util.IStringSerializable;
 
+import com.google.common.base.Function;
 import com.google.common.base.Objects;
 import com.google.gson.Gson;
 import com.google.gson.TypeAdapter;
@@ -108,10 +107,13 @@ public class TimeValues
     public static final class UserParameterValue implements ITimeValue, IStringSerializable
     {
         private final String parameterName;
+        private final Function<String, ITimeValue> valueResolver;
+        private ITimeValue parameter;
 
-        public UserParameterValue(String parameterName)
+        public UserParameterValue(String parameterName, Function<String, ITimeValue> valueResolver)
         {
             this.parameterName = parameterName;
+            this.valueResolver = valueResolver;
         }
 
         public String getName()
@@ -119,15 +121,60 @@ public class TimeValues
             return parameterName;
         }
 
+        private void resolve()
+        {
+            if(parameter == null)
+            {
+                if(valueResolver != null)
+                {
+                    parameter = valueResolver.apply(parameterName);
+                }
+                if(parameter == null)
+                {
+                    throw new IllegalArgumentException("Couldn't resolve user value " + parameterName);
+                }
+            }
+        }
+
         public float apply(float input)
         {
-            throw new NotImplementedException("UserParameterValue shouldn't exist outside the loading phase.");
+            resolve();
+            return parameter.apply(input);
+        }
+
+        @Override
+        public int hashCode()
+        {
+            resolve();
+            return parameter.hashCode();
+        }
+
+        @Override
+        public boolean equals(Object obj)
+        {
+            if (this == obj)
+                return true;
+            if (obj == null)
+                return false;
+            if (getClass() != obj.getClass())
+                return false;
+            UserParameterValue other = (UserParameterValue) obj;
+            resolve();
+            other.resolve();
+            return Objects.equal(parameter, other.parameter);
         }
     }
 
     public static enum CommonTimeValueTypeAdapterFactory implements TypeAdapterFactory
     {
         INSTANCE;
+
+        private final ThreadLocal<Function<String, ITimeValue>> valueResolver = new ThreadLocal<Function<String, ITimeValue>>();
+
+        public void setValueResolver(Function<String, ITimeValue> valueResolver)
+        {
+            this.valueResolver.set(valueResolver);
+        }
 
         @SuppressWarnings("unchecked")
         public <T> TypeAdapter<T> create(Gson gson, TypeToken<T> type)
@@ -155,8 +202,25 @@ public class TimeValues
 
                 public ITimeValue read(JsonReader in) throws IOException
                 {
-                    // TODO Auto-generated method stub
-                    return null;
+                    switch(in.peek())
+                    {
+                    case NUMBER:
+                        return new ConstValue((float)in.nextDouble());
+                    case STRING:
+                        String string = in.nextString();
+                        if(string.equals("#identity"))
+                        {
+                            return IdentityValue.instance;
+                        }
+                        if(!string.startsWith("#"))
+                        {
+                            throw new IOException("expected TimeValue reference, got \"" + string + "\"");
+                        }
+                        // User Parameter TimeValue
+                        return new UserParameterValue(string.substring(1), valueResolver.get());
+                    default:
+                        throw new IOException("expected TimeValue, got " + in.peek());
+                    }
                 }
             };
         }

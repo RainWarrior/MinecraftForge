@@ -33,9 +33,9 @@ public class ClipProviders
         private final IClip from;
         private final IClip to;
         private final ITimeValue input;
-        private final float length;
+        private final ITimeValue length;
 
-        public ClipSlerpProvider(IClip from, IClip to, ITimeValue input, float length)
+        public ClipSlerpProvider(IClip from, IClip to, ITimeValue input, ITimeValue length)
         {
             this.from = from;
             this.to = to;
@@ -45,6 +45,7 @@ public class ClipProviders
 
         public ClipLength apply(float start)
         {
+            float length = this.length.apply(start);
             ITimeValue progress = new TimeValues.LinearValue(1f / length, -start / length);
             return new ClipLength(new Clips.SlerpClip(from, to, input, progress), length);
         }
@@ -73,6 +74,7 @@ public class ClipProviders
                     {
                         ClipLengthProvider provider = (ClipLengthProvider)clipProvider;
                         out.beginArray();
+                        out.value("length");
                         clipAdapter.write(out, provider.clip);
                         parameterAdapter.write(out, provider.length);
                         out.endArray();
@@ -81,18 +83,39 @@ public class ClipProviders
                     {
                         ClipSlerpProvider provider = (ClipSlerpProvider)clipProvider;
                         out.beginArray();
+                        out.value("slerp");
                         clipAdapter.write(out, provider.from);
                         clipAdapter.write(out, provider.to);
                         parameterAdapter.write(out, provider.input);
-                        out.value(provider.length);
+                        parameterAdapter.write(out, provider.length);
                         out.endArray();
                     }
                 }
 
                 public IClipProvider read(JsonReader in) throws IOException
                 {
-                    // TODO Auto-generated method stub
-                    return null;
+                    IClipProvider provider;
+                    in.beginArray();
+                    String type = in.nextString();
+                    if("length".equals(type))
+                    {
+                        provider = new ClipLengthProvider(clipAdapter.read(in), parameterAdapter.read(in));
+                    }
+                    else if("slerp".equals(type))
+                    {
+                        provider = new ClipSlerpProvider(
+                            clipAdapter.read(in),
+                            clipAdapter.read(in),
+                            parameterAdapter.read(in),
+                            parameterAdapter.read(in)
+                        );
+                    }
+                    else
+                    {
+                        throw new IOException(new IllegalArgumentException("Unknown parameter type: " + type));
+                    }
+                    in.endArray();
+                    return provider;
                 }
             };
         }
