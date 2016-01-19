@@ -38,7 +38,7 @@ import net.minecraftforge.client.model.animation.AnimationModelBase;
 import net.minecraftforge.client.model.animation.AnimationStateMachine;
 import net.minecraftforge.client.model.animation.AnimationTESR;
 import net.minecraftforge.client.model.animation.IAnimationProvider;
-import net.minecraftforge.client.model.animation.IParameter;
+import net.minecraftforge.client.model.animation.ITimeValue;
 import net.minecraftforge.client.model.b3d.B3DLoader;
 import net.minecraftforge.client.model.pipeline.VertexLighterSmoothAo;
 import net.minecraftforge.common.property.ExtendedBlockState;
@@ -229,7 +229,7 @@ public class ModelAnimationDebug
     @EventHandler
     public void preInit(FMLPreInitializationEvent event) { proxy.preInit(event); }
 
-    private static abstract class CycleParameter implements IParameter, IStringSerializable
+    private static abstract class CycleValue implements ITimeValue, IStringSerializable
     {
         protected abstract float getCycleLength();
 
@@ -248,12 +248,12 @@ public class ModelAnimationDebug
                 return false;
             if (getClass() != obj.getClass())
                 return false;
-            CycleParameter other = (CycleParameter) obj;
+            CycleValue other = (CycleValue) obj;
             return getCycleLength() == other.getCycleLength();
         }
     }
 
-    private static abstract class WorldToCycle extends CycleParameter
+    private static abstract class WorldToCycle extends CycleValue
     {
         public float apply(float input)
         {
@@ -267,7 +267,7 @@ public class ModelAnimationDebug
         }
     }
 
-    private static abstract class RoundCycle extends CycleParameter
+    private static abstract class RoundCycle extends CycleValue
     {
         public float apply(float input)
         {
@@ -288,7 +288,7 @@ public class ModelAnimationDebug
         private float cycleLength = 4;
 
         public Chest() {
-            asm = Animation.load(new ResourceLocation("forgedebugmodelanimation", "afsm/block/engine"), ImmutableMap.<String, CycleParameter>of(
+            asm = Animation.load(new ResourceLocation("forgedebugmodelanimation", "afsm/block/engine"), ImmutableMap.<String, CycleValue>of(
                 "worldToCycle", new WorldToCycle()
                 {
                     protected float getCycleLength()
@@ -349,7 +349,7 @@ public class ModelAnimationDebug
         {
             super(world);
             setSize(1, 1);
-            asm = Animation.load(new ResourceLocation("forgedebugmodelanimation", "afsm/block/engine"), ImmutableMap.<String, CycleParameter>of(
+            asm = Animation.load(new ResourceLocation("forgedebugmodelanimation", "afsm/block/engine"), ImmutableMap.<String, CycleValue>of(
                 "worldToCycle", new WorldToCycle()
                 {
                     protected float getCycleLength()

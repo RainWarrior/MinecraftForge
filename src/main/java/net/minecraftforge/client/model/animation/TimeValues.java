@@ -13,11 +13,11 @@ import com.google.gson.stream.JsonReader;
 import com.google.gson.stream.JsonWriter;
 
 /**
- * Various implementations of IParameter.
+ * Various implementations of ITimeValue.
  */
-public class Parameters
+public class TimeValues
 {
-    public static enum NoopParameter implements IParameter, IStringSerializable
+    public static enum IdentityValue implements ITimeValue, IStringSerializable
     {
         instance;
 
@@ -32,11 +32,11 @@ public class Parameters
         }
     }
 
-    public static final class ConstParameter implements IParameter
+    public static final class ConstValue implements ITimeValue
     {
         private final float output;
 
-        public ConstParameter(float output)
+        public ConstValue(float output)
         {
             this.output = output;
         }
@@ -61,17 +61,17 @@ public class Parameters
                 return false;
             if (getClass() != obj.getClass())
                 return false;
-            ConstParameter other = (ConstParameter) obj;
+            ConstValue other = (ConstValue) obj;
             return output == other.output;
         }
     }
 
-    public static final class LinearParameter implements IParameter
+    public static final class LinearValue implements ITimeValue
     {
         private final float weight;
         private final float offset;
 
-        public LinearParameter(float weight, float offset)
+        public LinearValue(float weight, float offset)
         {
             super();
             this.weight = weight;
@@ -98,40 +98,40 @@ public class Parameters
                 return false;
             if (getClass() != obj.getClass())
                 return false;
-            LinearParameter other = (LinearParameter) obj;
+            LinearValue other = (LinearValue) obj;
             return weight == other.weight && offset == other.offset;
         }
     }
 
-    public static enum CommonParameterTypeAdapterFactory implements TypeAdapterFactory
+    public static enum CommonTimeValueTypeAdapterFactory implements TypeAdapterFactory
     {
         INSTANCE;
 
         @SuppressWarnings("unchecked")
         public <T> TypeAdapter<T> create(Gson gson, TypeToken<T> type)
         {
-            if(type.getRawType() != IParameter.class)
+            if(type.getRawType() != ITimeValue.class)
             {
                 return null;
             }
 
-            return (TypeAdapter<T>)new TypeAdapter<IParameter>()
+            return (TypeAdapter<T>)new TypeAdapter<ITimeValue>()
             {
-                public void write(JsonWriter out, IParameter parameter) throws IOException
+                public void write(JsonWriter out, ITimeValue parameter) throws IOException
                 {
-                    if(parameter instanceof ConstParameter)
+                    if(parameter instanceof ConstValue)
                     {
-                        out.value(((ConstParameter)parameter).output);
+                        out.value(((ConstValue)parameter).output);
                     }
-                    // TODO linear parameter
+                    // TODO linear value
                     else if(parameter instanceof IStringSerializable)
                     {
                         out.value("#" + ((IStringSerializable)parameter).getName());
                     }
-                    // TODO custom parameter writing?
+                    // TODO custom value writing?
                 }
 
-                public IParameter read(JsonReader in) throws IOException
+                public ITimeValue read(JsonReader in) throws IOException
                 {
                     // TODO Auto-generated method stub
                     return null;

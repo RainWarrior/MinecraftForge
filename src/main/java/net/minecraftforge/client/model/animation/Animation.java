@@ -53,7 +53,7 @@ public class Animation
     private static final Gson asmGson = new GsonBuilder()
         .registerTypeAdapterFactory(Clips.CommonClipTypeAdapterFactory.INSTANCE)
         .registerTypeAdapterFactory(Clips.CommonClipProviderTypeAdapterFactory.INSTANCE)
-        .registerTypeAdapterFactory(Parameters.CommonParameterTypeAdapterFactory.INSTANCE)
+        .registerTypeAdapterFactory(TimeValues.CommonTimeValueTypeAdapterFactory.INSTANCE)
         .registerTypeAdapterFactory(ClipProviderTableTypeAdapterFactory.INSTANCE)
         .setPrettyPrinting()
         .enableComplexMapKeySerialization()
@@ -63,17 +63,17 @@ public class Animation
     /**
      * Entry point for loading animation state machines.
      */
-    public static <P extends IParameter & IStringSerializable> AnimationStateMachine load(ResourceLocation location, ImmutableMap<String, P> customParameters)
+    public static <P extends ITimeValue & IStringSerializable> AnimationStateMachine load(ResourceLocation location, ImmutableMap<String, P> customParameters)
     {
         // hardcoded test case for now, JSON later
 
         if(location.equals(new ResourceLocation("forgedebugmodelanimation", "afsm/block/chest")))
         {
             IClip b3d = Clips.getModelClipNode(new ResourceLocation("forgedebugmodelloaderregistry", "block/chest.b3d"), "main");
-            IClip closed = new Clips.TimeClip(b3d, new Parameters.ConstParameter(0));
-            IClip open = new Clips.TimeClip(b3d, new Parameters.ConstParameter(10));
-            IClipProvider c2o = Clips.slerpFactory(closed, open, Parameters.NoopParameter.instance, 1);
-            IClipProvider o2c = Clips.slerpFactory(open, closed, Parameters.NoopParameter.instance, 1);
+            IClip closed = new Clips.TimeClip(b3d, new TimeValues.ConstValue(0));
+            IClip open = new Clips.TimeClip(b3d, new TimeValues.ConstValue(10));
+            IClipProvider c2o = Clips.slerpFactory(closed, open, TimeValues.IdentityValue.instance, 1);
+            IClipProvider o2c = Clips.slerpFactory(open, closed, TimeValues.IdentityValue.instance, 1);
 
             ImmutableTable.Builder<String, String, IClipProvider> builder = ImmutableTable.builder();
             builder.put("closed", "open", c2o);
@@ -88,8 +88,8 @@ public class Animation
         }
         else if(location.equals(new ResourceLocation("forgedebugmodelanimation", "afsm/block/engine")))
         {
-            final IParameter worldToCycle = customParameters.containsKey("worldToCycle") ? customParameters.get("worldToCycle") : Parameters.NoopParameter.instance;
-            final IParameter roundCycle = customParameters.containsKey("roundCycle") ? customParameters.get("roundCycle") : Parameters.NoopParameter.instance;
+            final ITimeValue worldToCycle = customParameters.containsKey("worldToCycle") ? customParameters.get("worldToCycle") : TimeValues.IdentityValue.instance;
+            final ITimeValue roundCycle = customParameters.containsKey("roundCycle") ? customParameters.get("roundCycle") : TimeValues.IdentityValue.instance;
 
             final IClip default_ = Clips.getModelClipNode(new ResourceLocation("forgedebugmodelanimation", "block/engine_ring"), "default");
             IClip movingTmp = Clips.getModelClipNode(new ResourceLocation("forgedebugmodelanimation", "block/engine_ring"), "moving");

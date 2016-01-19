@@ -102,9 +102,9 @@ public class Clips
     public static final class TimeClip implements IClip
     {
         private final IClip childClip;
-        private final IParameter time;
+        private final ITimeValue time;
 
-        public TimeClip(IClip childClip, IParameter time)
+        public TimeClip(IClip childClip, ITimeValue time)
         {
             this.childClip = childClip;
             this.time = time;
@@ -145,9 +145,9 @@ public class Clips
     public static final class ClipLengthProvider implements IClipProvider
     {
         private final IClip clip;
-        private final IParameter length;
+        private final ITimeValue length;
 
-        public ClipLengthProvider(IClip clip, IParameter length)
+        public ClipLengthProvider(IClip clip, ITimeValue length)
         {
             this.clip = clip;
             this.length = length;
@@ -159,7 +159,7 @@ public class Clips
         }
     }
 
-    public static IClipProvider createClipLength(IClip clip, IParameter length)
+    public static IClipProvider createClipLength(IClip clip, ITimeValue length)
     {
         return new ClipLengthProvider(clip, length);
     }
@@ -168,10 +168,10 @@ public class Clips
     {
         private final IClip from;
         private final IClip to;
-        private final IParameter input;
+        private final ITimeValue input;
         private final float length;
 
-        public ClipSlerpProvider(IClip from, IClip to, IParameter input, float length)
+        public ClipSlerpProvider(IClip from, IClip to, ITimeValue input, float length)
         {
             this.from = from;
             this.to = to;
@@ -181,12 +181,12 @@ public class Clips
 
         public ClipLength apply(float start)
         {
-            IParameter progress = new Parameters.LinearParameter(1f / length, -start / length);
+            ITimeValue progress = new TimeValues.LinearValue(1f / length, -start / length);
             return new ClipLength(new SlerpClip(from, to, input, progress), length);
         }
     }
 
-    public static IClipProvider slerpFactory(final IClip from, final IClip to, final IParameter input, final float length)
+    public static IClipProvider slerpFactory(final IClip from, final IClip to, final ITimeValue input, final float length)
     {
         return new ClipSlerpProvider(from, to, input, length);
     }
@@ -198,10 +198,10 @@ public class Clips
     {
         private final IClip from;
         private final IClip to;
-        private final IParameter input;
-        private final IParameter progress;
+        private final ITimeValue input;
+        private final ITimeValue progress;
 
-        public SlerpClip(IClip from, IClip to, IParameter input, IParameter progress)
+        public SlerpClip(IClip from, IClip to, ITimeValue input, ITimeValue progress)
         {
             this.from = from;
             this.to = to;
@@ -258,7 +258,7 @@ public class Clips
         }
     }*/
 
-    private static IJointClip blendClips(final IJoint joint, final IJointClip fromClip, final IJointClip toClip, final IParameter input, final IParameter progress)
+    private static IJointClip blendClips(final IJoint joint, final IJointClip fromClip, final IJointClip toClip, final ITimeValue input, final ITimeValue progress)
     {
         return new IJointClip()
         {
@@ -329,7 +329,7 @@ public class Clips
                 return null;
             }
 
-            final TypeAdapter<IParameter> parameterAdapter = gson.getAdapter(IParameter.class);
+            final TypeAdapter<ITimeValue> parameterAdapter = gson.getAdapter(ITimeValue.class);
 
             return (TypeAdapter<T>)new TypeAdapter<IClip>()
             {
@@ -366,7 +366,7 @@ public class Clips
                         case BEGIN_ARRAY:
                             in.beginArray();
                             IClip childClip = read(in);
-                            IParameter time = parameterAdapter.read(in);
+                            ITimeValue time = parameterAdapter.read(in);
                             in.endArray();
                             return new TimeClip(childClip, time);
                         case STRING:
@@ -416,7 +416,7 @@ public class Clips
             }
 
             final TypeAdapter<IClip> clipAdapter = gson.getAdapter(IClip.class);
-            final TypeAdapter<IParameter> parameterAdapter = gson.getAdapter(IParameter.class);
+            final TypeAdapter<ITimeValue> parameterAdapter = gson.getAdapter(ITimeValue.class);
 
             return (TypeAdapter<T>)new TypeAdapter<IClipProvider>()
             {
