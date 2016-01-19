@@ -2,6 +2,8 @@ package net.minecraftforge.client.model.animation;
 
 import java.io.IOException;
 
+import org.apache.commons.lang3.NotImplementedException;
+
 import net.minecraft.util.IStringSerializable;
 
 import com.google.common.base.Objects;
@@ -100,6 +102,26 @@ public class TimeValues
                 return false;
             LinearValue other = (LinearValue) obj;
             return weight == other.weight && offset == other.offset;
+        }
+    }
+
+    public static final class UserParameterValue implements ITimeValue, IStringSerializable
+    {
+        private final String parameterName;
+
+        public UserParameterValue(String parameterName)
+        {
+            this.parameterName = parameterName;
+        }
+
+        public String getName()
+        {
+            return parameterName;
+        }
+
+        public float apply(float input)
+        {
+            throw new NotImplementedException("UserParameterValue shouldn't exist outside the loading phase.");
         }
     }
 

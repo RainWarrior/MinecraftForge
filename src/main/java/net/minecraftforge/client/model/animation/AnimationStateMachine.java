@@ -3,6 +3,7 @@ package net.minecraftforge.client.model.animation;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
+import net.minecraft.util.IStringSerializable;
 import net.minecraftforge.client.model.IModelState;
 import net.minecraftforge.client.model.animation.Clips.ClipReference;
 
@@ -62,10 +63,12 @@ public class AnimationStateMachine
     }
 
     /**
-     * Post-loading initialization method. Resolves clip references.
+     * Post-loading initialization method. Resolves clip and parameter references.
      */
-    public void initialize()
+    public <P extends ITimeValue & IStringSerializable> void initialize(ImmutableMap<String, P> customParameters)
     {
+        // FIXME: resolution of custom parameters
+        // FIXME: deep resolution of clip references
         // resolving all name clip references
         ImmutableMap.Builder<String, IClip> builder = ImmutableMap.builder();
         for(Map.Entry<String, IClip> entry : clipsRaw.entrySet())

@@ -1,0 +1,21 @@
+{
+  "clips": {
+    "default": "forgedebugmodelanimation:block/engine_ring@default",
+    "moving": [ "forgedebugmodelanimation:block/engine_ring@moving", "#worldToCycle" ]
+  },
+  "states": [
+    "default",
+    "moving"
+  ],
+  "transitions": {
+    "default -> moving": [
+      "#default",
+      "#roundCycle"
+    ],
+    "moving -> default": [
+      "#moving",
+      "#roundCycle"
+    ]
+  },
+  "start_state": "moving"
+}

@@ -53,7 +53,6 @@ import net.minecraft.util.EnumFacing;
 import net.minecraft.util.IRegistry;
 import net.minecraft.util.ResourceLocation;
 import net.minecraftforge.client.model.animation.Animation;
-import net.minecraftforge.client.model.animation.Clips;
 import net.minecraftforge.client.model.animation.IAnimatedModel;
 import net.minecraftforge.client.model.animation.IClip;
 import net.minecraftforge.client.model.animation.ModelBlockAnimation;
@@ -857,8 +856,13 @@ public class ModelLoader extends ModelBakery
 
         public IModel loadModel(ResourceLocation modelLocation) throws IOException
         {
-            ResourceLocation armatureLocation = new ResourceLocation(modelLocation.getResourceDomain(), "animations/" + modelLocation.getResourcePath());
-            ModelBlockAnimation animation = Animation.loadVanillaAnimation(armatureLocation);
+            ModelBlockAnimation animation = Animation.INSTANCE.defaultModelBlockAnimation;
+            if(modelLocation.getResourcePath().startsWith("models/"))
+            {
+                String modelPath = modelLocation.getResourcePath().substring("models/".length());
+                ResourceLocation armatureLocation = new ResourceLocation(modelLocation.getResourceDomain(), "armatures/" + modelPath + ".json");
+                animation = Animation.INSTANCE.loadVanillaAnimation(armatureLocation);
+            }
             return loader.new VanillaModelWrapper(modelLocation, loader.loadModel(modelLocation), animation);
         }
     }

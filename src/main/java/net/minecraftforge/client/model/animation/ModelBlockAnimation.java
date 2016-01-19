@@ -27,11 +27,11 @@ import com.google.gson.annotations.SerializedName;
 
 public class ModelBlockAnimation
 {
-    private final ImmutableMap<String, ImmutableMap<Integer, float[]>> joints;
+    private final ImmutableMap<String, ImmutableMap<String, float[]>> joints;
     private final ImmutableMap<String, MBClip> clips;
     private transient ImmutableMultimap<Integer, MBJointWeight> jointIndexMap;
 
-    public ModelBlockAnimation(ImmutableMap<String, ImmutableMap<Integer, float[]>> joints, ImmutableMap<String, MBClip> clips)
+    public ModelBlockAnimation(ImmutableMap<String, ImmutableMap<String, float[]>> joints, ImmutableMap<String, MBClip> clips)
     {
         this.joints = joints;
         this.clips = clips;
@@ -47,11 +47,17 @@ public class ModelBlockAnimation
         if(jointIndexMap == null)
         {
             ImmutableMultimap.Builder<Integer, MBJointWeight> builder = ImmutableMultimap.builder();
-            for(Map.Entry<String, ImmutableMap<Integer, float[]>> info : joints.entrySet())
+            for(Map.Entry<String, ImmutableMap<String, float[]>> info : joints.entrySet())
             {
-                for(Map.Entry<Integer, float[]> e : info.getValue().entrySet())
+                ImmutableMap.Builder<Integer, float[]> weightBuilder = ImmutableMap.builder();
+                for(Map.Entry<String, float[]> e : info.getValue().entrySet())
                 {
-                    builder.put(e.getKey(), new MBJointWeight(info.getKey(), info.getValue()));
+                    weightBuilder.put(Integer.parseInt(e.getKey()), e.getValue());
+                }
+                ImmutableMap<Integer, float[]> weightMap = weightBuilder.build();
+                for(Map.Entry<Integer, float[]> e : weightMap.entrySet())
+                {
+                    builder.put(e.getKey(), new MBJointWeight(info.getKey(), weightMap));
                 }
             }
             jointIndexMap = builder.build();

@@ -288,7 +288,7 @@ public class ModelAnimationDebug
         private float cycleLength = 4;
 
         public Chest() {
-            asm = Animation.load(new ResourceLocation("forgedebugmodelanimation", "afsm/block/engine"), ImmutableMap.<String, CycleValue>of(
+            asm = Animation.INSTANCE.load(new ResourceLocation(MODID.toLowerCase(), "asms/block/engine.json"), ImmutableMap.<String, CycleValue>of(
                 "worldToCycle", new WorldToCycle()
                 {
                     protected float getCycleLength()
@@ -349,7 +349,7 @@ public class ModelAnimationDebug
         {
             super(world);
             setSize(1, 1);
-            asm = Animation.load(new ResourceLocation("forgedebugmodelanimation", "afsm/block/engine"), ImmutableMap.<String, CycleValue>of(
+            asm = Animation.INSTANCE.load(new ResourceLocation(MODID.toLowerCase(), "asms/block/engine.json"), ImmutableMap.<String, CycleValue>of(
                 "worldToCycle", new WorldToCycle()
                 {
                     protected float getCycleLength()

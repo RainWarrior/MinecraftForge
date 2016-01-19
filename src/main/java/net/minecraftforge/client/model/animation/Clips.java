@@ -142,55 +142,6 @@ public class Clips
         }
     }
 
-    public static final class ClipLengthProvider implements IClipProvider
-    {
-        private final IClip clip;
-        private final ITimeValue length;
-
-        public ClipLengthProvider(IClip clip, ITimeValue length)
-        {
-            this.clip = clip;
-            this.length = length;
-        }
-
-        public ClipLength apply(float time)
-        {
-            return new ClipLength(clip, length.apply(time));
-        }
-    }
-
-    public static IClipProvider createClipLength(IClip clip, ITimeValue length)
-    {
-        return new ClipLengthProvider(clip, length);
-    }
-
-    public static final class ClipSlerpProvider implements IClipProvider
-    {
-        private final IClip from;
-        private final IClip to;
-        private final ITimeValue input;
-        private final float length;
-
-        public ClipSlerpProvider(IClip from, IClip to, ITimeValue input, float length)
-        {
-            this.from = from;
-            this.to = to;
-            this.input = input;
-            this.length = length;
-        }
-
-        public ClipLength apply(float start)
-        {
-            ITimeValue progress = new TimeValues.LinearValue(1f / length, -start / length);
-            return new ClipLength(new SlerpClip(from, to, input, progress), length);
-        }
-    }
-
-    public static IClipProvider slerpFactory(final IClip from, final IClip to, final ITimeValue input, final float length)
-    {
-        return new ClipSlerpProvider(from, to, input, length);
-    }
-
     /**
      * Spherical linear blend between 2 clips.
      */
@@ -335,6 +286,7 @@ public class Clips
             {
                 public void write(JsonWriter out, IClip clip) throws IOException
                 {
+                    // IdentityClip + ClipReference
                     if(clip instanceof IStringSerializable)
                     {
                         out.value("#" + ((IStringSerializable)clip).getName());
@@ -356,7 +308,7 @@ public class Clips
                         return;
                     }
                     // TODO custom clip writing?
-                    throw new NotImplementedException("Clip to json: " + clip);
+                    throw new NotImplementedException("unknown Clip to json: " + clip);
                 }
 
                 public IClip read(JsonReader in) throws IOException
@@ -364,6 +316,7 @@ public class Clips
                     switch(in.peek())
                     {
                         case BEGIN_ARRAY:
+                            // TimeClip
                             in.beginArray();
                             IClip childClip = read(in);
                             ITimeValue time = parameterAdapter.read(in);
@@ -371,14 +324,17 @@ public class Clips
                             return new TimeClip(childClip, time);
                         case STRING:
                             String name = in.nextString();
+                            // IdentityClip
                             if(name.equals("#identity"))
                             {
                                 return IdentityClip.instance;
                             }
+                            // ClipReference
                             if(name.startsWith("#"))
                             {
                                 return new ClipReference(name.substring(1));
                             }
+                            // ModelClip
                             else
                             {
                                 int at = name.lastIndexOf('@');
@@ -398,54 +354,6 @@ public class Clips
                         default:
                             throw new IOException("expected Clip, got " + in.peek());
                     }
-                }
-            };
-        }
-    }
-
-    public static enum CommonClipProviderTypeAdapterFactory implements TypeAdapterFactory
-    {
-        INSTANCE;
-
-        @SuppressWarnings("unchecked")
-        public <T> TypeAdapter<T> create(Gson gson, TypeToken<T> type)
-        {
-            if(type.getRawType() != IClipProvider.class)
-            {
-                return null;
-            }
-
-            final TypeAdapter<IClip> clipAdapter = gson.getAdapter(IClip.class);
-            final TypeAdapter<ITimeValue> parameterAdapter = gson.getAdapter(ITimeValue.class);
-
-            return (TypeAdapter<T>)new TypeAdapter<IClipProvider>()
-            {
-                public void write(JsonWriter out, IClipProvider clipProvider) throws IOException
-                {
-                    if(clipProvider instanceof ClipLengthProvider)
-                    {
-                        ClipLengthProvider provider = (ClipLengthProvider)clipProvider;
-                        out.beginArray();
-                        clipAdapter.write(out, provider.clip);
-                        parameterAdapter.write(out, provider.length);
-                        out.endArray();
-                    }
-                    else if(clipProvider instanceof ClipSlerpProvider)
-                    {
-                        ClipSlerpProvider provider = (ClipSlerpProvider)clipProvider;
-                        out.beginArray();
-                        clipAdapter.write(out, provider.from);
-                        clipAdapter.write(out, provider.to);
-                        parameterAdapter.write(out, provider.input);
-                        out.value(provider.length);
-                        out.endArray();
-                    }
-                }
-
-                public IClipProvider read(JsonReader in) throws IOException
-                {
-                    // TODO Auto-generated method stub
-                    return null;
                 }
             };
         }
