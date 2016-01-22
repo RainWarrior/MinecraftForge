@@ -5,7 +5,7 @@ import net.minecraftforge.client.model.TRSRTransformation;
 /**
  * Various implementations of IJointClip.
  */
-public class JointClips
+public final class JointClips
 {
     public static enum IdentityJointClip implements IJointClip
     {

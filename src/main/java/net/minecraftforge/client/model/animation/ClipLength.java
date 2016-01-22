@@ -1,6 +1,7 @@
 package net.minecraftforge.client.model.animation;
 
 import com.google.common.base.Objects;
+import com.google.common.collect.UnmodifiableIterator;
 
 /**
  * Clip that has a definite length.
@@ -20,6 +21,11 @@ public final class ClipLength implements IClip
     public IJointClip apply(final IJoint joint)
     {
         return clip.apply(joint);
+    }
+
+    public UnmodifiableIterator<Event> pastEvents(float lastPollTime, float time)
+    {
+        return clip.pastEvents(lastPollTime, time);
     }
 
     public float getLength()

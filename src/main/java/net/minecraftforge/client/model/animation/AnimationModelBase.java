@@ -15,16 +15,20 @@ import net.minecraft.init.Blocks;
 import net.minecraft.util.BlockPos;
 import net.minecraft.util.EnumFacing;
 import net.minecraftforge.client.model.IModel;
+import net.minecraftforge.client.model.IModelState;
 import net.minecraftforge.client.model.ModelLoader;
 import net.minecraftforge.client.model.pipeline.VertexLighterFlat;
 import net.minecraftforge.client.model.pipeline.WorldRendererConsumer;
 
+import org.apache.commons.lang3.tuple.Pair;
 import org.lwjgl.opengl.GL11;
+
+import com.google.common.collect.UnmodifiableIterator;
 
 /**
  * ModelBase that works with the Forge model system and animations.
  */
-public class AnimationModelBase<T extends Entity & IAnimationProvider> extends ModelBase
+public class AnimationModelBase<T extends Entity & IAnimationProvider> extends ModelBase implements IEventHandler<T>
 {
     private final VertexLighterFlat lighter;
     private final IModel model;
@@ -35,6 +39,7 @@ public class AnimationModelBase<T extends Entity & IAnimationProvider> extends M
         this.lighter = lighter;
     }
 
+    @SuppressWarnings("unchecked")
     @Override
     public void render(Entity entity, float limbSwing, float limbSwingSpeed, float timeAlive, float yawHead, float rotationPitch, float scale)
     {
@@ -42,7 +47,10 @@ public class AnimationModelBase<T extends Entity & IAnimationProvider> extends M
         {
             throw new ClassCastException("AnimationModelBase expects IAnimationProvider");
         }
-        IBakedModel bakedModel = model.bake(((IAnimationProvider)entity).asm().apply(timeAlive / 20), DefaultVertexFormats.ITEM, ModelLoader.defaultTextureGetter());
+
+        Pair<IModelState, UnmodifiableIterator<Event>> pair = ((IAnimationProvider)entity).asm().apply(timeAlive / 20);
+        handleEvents((T)entity, timeAlive / 20, pair.getRight());
+        IBakedModel bakedModel = model.bake(pair.getLeft(), DefaultVertexFormats.ITEM, ModelLoader.defaultTextureGetter());
 
         BlockPos pos = new BlockPos(entity.posX, entity.posY + entity.height, entity.posZ);
 
@@ -95,4 +103,6 @@ public class AnimationModelBase<T extends Entity & IAnimationProvider> extends M
         GlStateManager.popMatrix();
         RenderHelper.enableStandardItemLighting();
     }
+
+    public void handleEvents(T instance, float time, UnmodifiableIterator<Event> pastEvents) {}
 }

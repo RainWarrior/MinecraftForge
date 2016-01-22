@@ -20,11 +20,12 @@ import org.apache.commons.lang3.tuple.Pair;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
+import com.google.common.collect.UnmodifiableIterator;
 
 /**
  * Generic TileEntitySpecialRenderer that works with the Forge model system and animations.
  */
-public class AnimationTESR<T extends TileEntity & IAnimationProvider> extends FastTESR<T>
+public class AnimationTESR<T extends TileEntity & IAnimationProvider> extends FastTESR<T> implements IEventHandler<T>
 {
     protected static BlockRendererDispatcher blockRenderer;
 
@@ -61,7 +62,11 @@ public class AnimationTESR<T extends TileEntity & IAnimationProvider> extends Fa
             IExtendedBlockState exState = (IExtendedBlockState)state;
             if(exState.getUnlistedNames().contains(Animation.AnimationProperty))
             {
-                IBakedModel model = getModel(exState, te.asm().apply(Animation.getWorldTime(getWorld(), partialTick)));
+                float time = Animation.getWorldTime(getWorld(), partialTick);
+                Pair<IModelState, UnmodifiableIterator<Event>> pair = te.asm().apply(time);
+                handleEvents(te, time, pair.getRight());
+
+                IBakedModel model = getModel(exState, pair.getLeft());
 
                 renderer.setTranslation(x - pos.getX(), y - pos.getY(), z - pos.getZ());
 
@@ -69,4 +74,6 @@ public class AnimationTESR<T extends TileEntity & IAnimationProvider> extends Fa
             }
         }
     }
+
+    public void handleEvents(T te, float time, UnmodifiableIterator<Event> pastEvents) {}
 }

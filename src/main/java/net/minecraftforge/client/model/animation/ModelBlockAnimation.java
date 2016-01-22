@@ -3,6 +3,8 @@ package net.minecraftforge.client.model.animation;
 import java.util.Collections;
 import java.util.EnumSet;
 import java.util.Map;
+import java.util.NoSuchElementException;
+import java.util.TreeMap;
 
 import javax.vecmath.AxisAngle4f;
 import javax.vecmath.Matrix4f;
@@ -22,7 +24,9 @@ import com.google.common.collect.ImmutableCollection;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableMultimap;
+import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
+import com.google.common.collect.UnmodifiableIterator;
 import com.google.gson.annotations.SerializedName;
 
 public class ModelBlockAnimation
@@ -88,20 +92,23 @@ public class ModelBlockAnimation
         @SerializedName("joint_clips")
         private final ImmutableMap<String, ImmutableList<MBVariableClip>> jointClipsFlat;
         private transient ImmutableMap<String, MBJointClip> jointClips;
+        @SerializedName("events")
+        private final ImmutableMap<String, String> eventsRaw;
+        private transient TreeMap<Float, Event> events;
 
         protected MBClip()
         {
-            this(false, ImmutableMap.<String, ImmutableList<MBVariableClip>>of());
+            this(false, ImmutableMap.<String, ImmutableList<MBVariableClip>>of(), ImmutableMap.<String, String>of());
         }
 
-        public MBClip(boolean loop, ImmutableMap<String, ImmutableList<MBVariableClip>> clips)
+        public MBClip(boolean loop, ImmutableMap<String, ImmutableList<MBVariableClip>> clips, ImmutableMap<String, String> events)
         {
             this.loop = loop;
             this.jointClipsFlat = clips;
+            this.eventsRaw = events;
         }
 
-        @Override
-        public IJointClip apply(IJoint joint)
+        private void initialize()
         {
             if(jointClips == null)
             {
@@ -111,7 +118,35 @@ public class ModelBlockAnimation
                     builder.put(e.getKey(), new MBJointClip(loop, e.getValue()));
                 }
                 jointClips = builder.build();
+                events = Maps.newTreeMap();
+                TreeMap<Float, String> times = Maps.newTreeMap();
+                for(String time : eventsRaw.keySet())
+                {
+                    times.put(Float.parseFloat(time), time);
+                }
+                float lastTime = Float.POSITIVE_INFINITY;
+                if(loop)
+                {
+                    lastTime = times.firstKey();
+                }
+                for(Map.Entry<Float, String> entry : times.descendingMap().entrySet())
+                {
+                    float time = entry.getKey();
+                    float offset = lastTime - time;
+                    if(loop)
+                    {
+                        offset = 1 - (1 - offset) % 1;
+                    }
+                    System.out.println("Event: " + new Event(eventsRaw.get(entry.getValue()), offset));
+                    events.put(time, new Event(eventsRaw.get(entry.getValue()), offset));
+                }
             }
+        }
+
+        @Override
+        public IJointClip apply(IJoint joint)
+        {
+            initialize();
             if(joint instanceof MBJoint)
             {
                 MBJoint mbJoint = (MBJoint)joint;
@@ -120,6 +155,101 @@ public class ModelBlockAnimation
                 if(clip != null) return clip;
             }
             return JointClips.IdentityJointClip.instance;
+        }
+
+        @Override
+        public UnmodifiableIterator<Event> pastEvents(final float lastPollTime, final float time)
+        {
+            initialize();
+            return new UnmodifiableIterator<Event>()
+            {
+                private Float curKey;
+                private Event firstEvent;
+                private float stopTime;
+                {
+                    float fractTime = time - (float)Math.floor(time);
+                    float fractLastTime = lastPollTime - (float)Math.floor(lastPollTime);
+                    // swap if not in order
+                    if(fractLastTime > fractTime)
+                    {
+                        float tmp = fractTime;
+                        fractTime = fractLastTime;
+                        fractLastTime = tmp;
+                    }
+                    // need to wrap around, swap again
+                    if(fractTime - fractLastTime > .5f)
+                    {
+                        float tmp = fractTime;
+                        fractTime = fractLastTime;
+                        fractLastTime = tmp;
+                    }
+
+                    stopTime = fractLastTime;
+
+                    curKey = events.floorKey(fractTime);
+                    if(curKey == null && loop && !events.isEmpty())
+                    {
+                        curKey = events.lastKey();
+                    }
+                    if(curKey != null)
+                    {
+                        float checkCurTime = curKey;
+                        float checkStopTime = stopTime;
+                        if(checkCurTime > fractTime) checkCurTime--;
+                        if(checkStopTime > fractTime) checkStopTime--;
+                        float offset = fractTime - checkCurTime;
+                        Event event = events.get(curKey);
+                        if(checkCurTime < checkStopTime)
+                        {
+                            curKey = null;
+                        }
+                        else if(offset != event.offset())
+                        {
+                            firstEvent = new Event(event.event(), offset);
+                        }
+                    }
+                }
+
+                public boolean hasNext()
+                {
+                    return curKey != null;
+                }
+
+                @Override
+                public Event next()
+                {
+                    if(curKey == null)
+                    {
+                        throw new NoSuchElementException();
+                    }
+                    Event event;
+                    if(firstEvent == null)
+                    {
+                        event = events.get(curKey);
+                    }
+                    else
+                    {
+                        event = firstEvent;
+                        firstEvent = null;
+                    }
+                    curKey = events.lowerKey(curKey);
+                    if(curKey == null && loop)
+                    {
+                        curKey = events.lastKey();
+                    }
+                    if(curKey != null)
+                    {
+                        float checkStopTime = stopTime;
+                        if(curKey + events.get(curKey).offset() < checkStopTime) checkStopTime--;
+                        if(curKey + events.get(curKey).offset() > checkStopTime + 1) checkStopTime++;
+                        if(curKey < checkStopTime)
+                        {
+                            curKey = null;
+                        }
+                    }
+                    return event;
+                }
+            };
         }
 
         protected static class MBJointClip implements IJointClip

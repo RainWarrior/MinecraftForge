@@ -1,9 +1,14 @@
 package net.minecraftforge.client.model.b3d;
 
+import com.google.common.collect.ImmutableSet;
+import com.google.common.collect.UnmodifiableIterator;
+
 import net.minecraftforge.client.model.TRSRTransformation;
+import net.minecraftforge.client.model.animation.Event;
 import net.minecraftforge.client.model.animation.IClip;
 import net.minecraftforge.client.model.animation.IJoint;
 import net.minecraftforge.client.model.animation.IJointClip;
+import net.minecraftforge.client.model.animation.ITimeValue;
 import net.minecraftforge.client.model.animation.JointClips;
 import net.minecraftforge.client.model.b3d.B3DLoader.NodeJoint;
 import net.minecraftforge.client.model.b3d.B3DModel.Key;
@@ -21,6 +26,11 @@ public enum B3DClip implements IClip
             return JointClips.IdentityJointClip.instance;
         }
         return new NodeClip(((NodeJoint)joint).getNode());
+    }
+
+    public UnmodifiableIterator<Event> pastEvents(float lastPollTime, float time)
+    {
+        return ImmutableSet.<Event>of().iterator();
     }
 
     protected static class NodeClip implements IJointClip

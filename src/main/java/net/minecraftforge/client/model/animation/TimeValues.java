@@ -16,7 +16,7 @@ import com.google.gson.stream.JsonWriter;
 /**
  * Various implementations of ITimeValue.
  */
-public class TimeValues
+public final class TimeValues
 {
     public static enum IdentityValue implements ITimeValue, IStringSerializable
     {

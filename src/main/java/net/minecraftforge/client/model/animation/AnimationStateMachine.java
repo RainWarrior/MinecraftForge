@@ -5,6 +5,7 @@ import java.util.concurrent.TimeUnit;
 import net.minecraftforge.client.model.IModelState;
 
 import org.apache.commons.lang3.tuple.Pair;
+import org.apache.commons.lang3.tuple.Triple;
 
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
@@ -12,6 +13,7 @@ import com.google.common.cache.LoadingCache;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableTable;
+import com.google.common.collect.UnmodifiableIterator;
 import com.google.gson.annotations.SerializedName;
 
 /**
@@ -31,16 +33,16 @@ public class AnimationStateMachine
     private transient ClipLength currentTransition = null;
     private transient boolean transitioning = false;
     private transient float transitionStart = Float.MIN_VALUE;
+    private transient float lastPollTime = Float.NEGATIVE_INFINITY;
 
-    private static final LoadingCache<Pair<? extends IClip, Float>, IModelState> clipCache = CacheBuilder.newBuilder()
+    private static final LoadingCache<Triple<? extends IClip, Float, Float>, Pair<IModelState, UnmodifiableIterator<Event>>> clipCache = CacheBuilder.newBuilder()
         .maximumSize(100)
         .expireAfterWrite(100, TimeUnit.MILLISECONDS)
-        .build(new CacheLoader<Pair<? extends IClip, Float>, IModelState>()
+        .build(new CacheLoader<Triple<? extends IClip, Float, Float>, Pair<IModelState, UnmodifiableIterator<Event>>>()
         {
-            public IModelState load(Pair<? extends IClip, Float> key) throws Exception
+            public Pair<IModelState, UnmodifiableIterator<Event>> load(Triple<? extends IClip, Float, Float> key) throws Exception
             {
-                IModelState state = Clips.apply(key.getLeft(), key.getRight());
-                return state;
+                return Clips.apply(key.getLeft(), key.getMiddle(), key.getRight());
             }
         });
 
@@ -83,14 +85,24 @@ public class AnimationStateMachine
     /**
      * Sample the state at the current time.
      */
-    public IModelState apply(float time)
+    public Pair<IModelState, UnmodifiableIterator<Event>> apply(float time)
     {
+        if(lastPollTime == Float.NEGATIVE_INFINITY)
+        {
+            lastPollTime = time;
+        }
         checkTransitionEnd(time);
+        Pair<IModelState, UnmodifiableIterator<Event>> pair;
         if(transitioning)
         {
-            return clipCache.getUnchecked(Pair.of(currentTransition, time));
+            pair = clipCache.getUnchecked(Triple.of(currentTransition, lastPollTime, time));
         }
-        return clipCache.getUnchecked(Pair.of(currentState, time));
+        else
+        {
+            pair = clipCache.getUnchecked(Triple.of(currentState, lastPollTime, time));
+        }
+        lastPollTime = time;
+        return pair;
     }
 
     /**

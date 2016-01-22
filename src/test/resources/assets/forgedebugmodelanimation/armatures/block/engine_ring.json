@@ -7,7 +7,8 @@
   "clips": {
     "default": {
       "loop": false,
-      "joint_clips": {}
+      "joint_clips": {},
+      "events": {}
     },
     "moving": {
       "loop": true,
@@ -53,6 +54,9 @@
             "samples": [ 1, 0 ]
           }
         ]
+      },
+      "events": {
+        "0.5": "boop"
       }
     }
   }

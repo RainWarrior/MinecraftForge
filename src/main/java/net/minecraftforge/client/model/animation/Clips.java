@@ -14,10 +14,15 @@ import net.minecraftforge.client.model.TRSRTransformation;
 import net.minecraftforge.fml.common.FMLLog;
 
 import org.apache.commons.lang3.NotImplementedException;
+import org.apache.commons.lang3.tuple.Pair;
 
 import com.google.common.base.Function;
 import com.google.common.base.Objects;
 import com.google.common.base.Optional;
+import com.google.common.collect.ImmutableSet;
+import com.google.common.collect.Iterators;
+import com.google.common.collect.Ordering;
+import com.google.common.collect.UnmodifiableIterator;
 import com.google.gson.Gson;
 import com.google.gson.TypeAdapter;
 import com.google.gson.TypeAdapterFactory;
@@ -28,7 +33,7 @@ import com.google.gson.stream.JsonWriter;
 /**
  * Various implementations of IClip, and utility methods.
  */
-public class Clips
+public final class Clips
 {
     /**
      * Clip that does nothing.
@@ -40,6 +45,11 @@ public class Clips
         public IJointClip apply(IJoint joint)
         {
             return JointClips.IdentityJointClip.instance;
+        }
+
+        public UnmodifiableIterator<Event> pastEvents(float lastPollTime, float time)
+        {
+            return ImmutableSet.<Event>of().iterator();
         }
 
         public String getName()
@@ -96,6 +106,11 @@ public class Clips
             return childClip.apply(joint);
         }
 
+        public UnmodifiableIterator<Event> pastEvents(float lastPollTime, float time)
+        {
+            return childClip.pastEvents(lastPollTime, time);
+        }
+
         @Override
         public int hashCode()
         {
@@ -142,6 +157,11 @@ public class Clips
             };
         }
 
+        public UnmodifiableIterator<Event> pastEvents(float lastPollTime, float time)
+        {
+            return childClip.pastEvents(this.time.apply(lastPollTime), this.time.apply(time));
+        }
+
         @Override
         public int hashCode()
         {
@@ -185,6 +205,16 @@ public class Clips
             IJointClip fromClip = from.apply(joint);
             IJointClip toClip = to.apply(joint);
             return blendClips(joint, fromClip, toClip, input, progress);
+        }
+
+        public UnmodifiableIterator<Event> pastEvents(float lastPollTime, float time)
+        {
+            float clipLastPollTime = input.apply(lastPollTime);
+            float clipTime = input.apply(time);
+            return Iterators.mergeSorted(ImmutableSet.of(
+                from.pastEvents(clipLastPollTime, clipTime),
+                to.pastEvents(clipLastPollTime, clipTime)
+            ), Ordering.<Event>natural());
         }
 
         @Override
@@ -244,9 +274,9 @@ public class Clips
     /**
      * IModelState wrapper for a Clip, sampled at specified time.
      */
-    public static IModelState apply(final IClip clip, final float time)
+    public static Pair<IModelState, UnmodifiableIterator<Event>> apply(final IClip clip, final float lastPollTime, final float time)
     {
-        return new IModelState()
+        return Pair.<IModelState, UnmodifiableIterator<Event>>of(new IModelState()
         {
             public Optional<TRSRTransformation> apply(Optional<? extends IModelPart> part)
             {
@@ -261,7 +291,7 @@ public class Clips
                 }
                 return Optional.of(clip.apply(joint.getParent().get()).apply(time).compose(clip.apply(joint).apply(time)).compose(joint.getInvBindPose()));
             }
-        };
+        }, clip.pastEvents(lastPollTime, time));
     }
 
     /**
@@ -299,6 +329,12 @@ public class Clips
         {
             resolve();
             return clip.apply(joint);
+        }
+
+        public UnmodifiableIterator<Event> pastEvents(float lastPollTime, float time)
+        {
+            resolve();
+            return clip.pastEvents(lastPollTime, time);
         }
 
         public String getName()

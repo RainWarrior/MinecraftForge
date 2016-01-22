@@ -36,6 +36,7 @@ import net.minecraftforge.client.model.animation.Animation;
 import net.minecraftforge.client.model.animation.AnimationModelBase;
 import net.minecraftforge.client.model.animation.AnimationStateMachine;
 import net.minecraftforge.client.model.animation.AnimationTESR;
+import net.minecraftforge.client.model.animation.Event;
 import net.minecraftforge.client.model.animation.IAnimationProvider;
 import net.minecraftforge.client.model.animation.ITimeValue;
 import net.minecraftforge.client.model.b3d.B3DLoader;
@@ -57,6 +58,7 @@ import org.apache.commons.lang3.tuple.Pair;
 
 import com.google.common.base.Objects;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.UnmodifiableIterator;
 
 @Mod(modid = ModelAnimationDebug.MODID, version = ModelAnimationDebug.VERSION)
 public class ModelAnimationDebug
@@ -165,7 +167,14 @@ public class ModelAnimationDebug
             super.preInit(event);
             B3DLoader.instance.addDomain(MODID);
             ModelLoader.setCustomModelResourceLocation(Item.getItemFromBlock(GameRegistry.findBlock(MODID, blockName)), 0, new ModelResourceLocation(MODID.toLowerCase() + ":" + blockName, "inventory"));
-            ClientRegistry.bindTileEntitySpecialRenderer(Chest.class, new AnimationTESR<Chest>());
+            ClientRegistry.bindTileEntitySpecialRenderer(Chest.class, new AnimationTESR<Chest>()
+            {
+                @Override
+                public void handleEvents(Chest chest, float time, UnmodifiableIterator<Event> pastEvents)
+                {
+                    chest.handleEvents(chest, time, pastEvents);
+                }
+            });
             String entityName = MODID + ":entity_chest";
             //EntityRegistry.registerGlobalEntityID(EntityChest.class, entityName, EntityRegistry.findGlobalUniqueEntityId());
             EntityRegistry.registerModEntity(EntityChest.class, entityName, 0, ModelAnimationDebug.instance, 64, 20, true, 0xFFAAAA00, 0xFFDDDD00);
@@ -208,7 +217,14 @@ public class ModelAnimationDebug
                                 "base", Pair.<IModel, IModelState>of(base, TRSRTransformation.identity())
                             )
                         );
-                        return new RenderLiving<EntityChest>(manager, new AnimationModelBase<EntityChest>(model, new VertexLighterSmoothAo()), 0.5f)
+                        return new RenderLiving<EntityChest>(manager, new AnimationModelBase<EntityChest>(model, new VertexLighterSmoothAo())
+                            {
+                                @Override
+                                public void handleEvents(EntityChest chest, float time, UnmodifiableIterator<Event> pastEvents)
+                                {
+                                    chest.handleEvents(time, pastEvents);
+                                }
+                            }, 0.5f)
                         {
                             protected ResourceLocation getEntityTexture(EntityChest entity)
                             {
@@ -293,6 +309,15 @@ public class ModelAnimationDebug
             ));
         }
 
+        public void handleEvents(Chest chest, float time, UnmodifiableIterator<Event> pastEvents)
+        {
+            while(pastEvents.hasNext())
+            {
+                Event event = pastEvents.next();
+                System.out.println("Event: " + event.event() + " " + event.offset() + " " + chest.getPos() + " " + time);
+            }
+        }
+
         @Override
         public boolean hasFastRenderer()
         {
@@ -328,7 +353,7 @@ public class ModelAnimationDebug
         }
     }
 
-    public static class EntityChest extends EntityLiving implements IAnimationProvider
+    private static class EntityChest extends EntityLiving implements IAnimationProvider
     {
         private final AnimationStateMachine asm;
 
@@ -352,6 +377,11 @@ public class ModelAnimationDebug
                     }
                 }
             ));
+        }
+
+        public void handleEvents(float time, UnmodifiableIterator<Event> pastEvents)
+        {
+            // TODO Auto-generated method stub
         }
 
         public AnimationStateMachine asm()
