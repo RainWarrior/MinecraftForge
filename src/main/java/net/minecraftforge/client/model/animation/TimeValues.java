@@ -6,6 +6,7 @@ import net.minecraft.util.IStringSerializable;
 
 import com.google.common.base.Function;
 import com.google.common.base.Objects;
+import com.google.common.collect.ImmutableList;
 import com.google.gson.Gson;
 import com.google.gson.TypeAdapter;
 import com.google.gson.TypeAdapterFactory;
@@ -67,27 +68,44 @@ public final class TimeValues
         }
     }
 
-    public static final class LinearValue implements ITimeValue
+    public static final class SimpleExprValue implements ITimeValue
     {
-        private final float weight;
-        private final float offset;
+        private final String operators;
+        private final ImmutableList<ITimeValue> args;
 
-        public LinearValue(float weight, float offset)
+        public SimpleExprValue(String operators, ImmutableList<ITimeValue> args)
         {
-            super();
-            this.weight = weight;
-            this.offset = offset;
+            this.operators = operators;
+            this.args = args;
         }
 
         public float apply(float input)
         {
-            return input * weight + offset;
+            float ret = input;
+            for(int i = 0; i < operators.length(); i++)
+            {
+                float arg = args.get(i).apply(input);
+                switch(operators.charAt(i))
+                {
+                    case '+': ret += arg; break;
+                    case '-': ret -= arg; break;
+                    case '*': ret *= arg; break;
+                    case '/': ret /= arg; break;
+                    case 'm': ret = Math.min(ret, arg); break;
+                    case 'M': ret = Math.max(ret, arg); break;
+                    case 'r': ret = (float)Math.floor(ret / arg) * arg; break;
+                    case 'R': ret = (float)Math.ceil(ret / arg) * arg; break;
+                    case 'f': ret -= Math.floor(ret / arg) * arg; break;
+                    case 'F': ret = (float)Math.ceil(ret / arg) * arg - ret; break;
+                }
+            }
+            return ret;
         }
 
         @Override
         public int hashCode()
         {
-            return Objects.hashCode(weight, offset);
+            return Objects.hashCode(operators, args);
         }
 
         @Override
@@ -99,18 +117,18 @@ public final class TimeValues
                 return false;
             if (getClass() != obj.getClass())
                 return false;
-            LinearValue other = (LinearValue) obj;
-            return weight == other.weight && offset == other.offset;
+            SimpleExprValue other = (SimpleExprValue) obj;
+            return Objects.equal(operators, other.operators) && Objects.equal(args, other.args);
         }
     }
 
-    public static final class UserParameterValue implements ITimeValue, IStringSerializable
+    public static final class ParameterValue implements ITimeValue, IStringSerializable
     {
         private final String parameterName;
         private final Function<String, ITimeValue> valueResolver;
         private ITimeValue parameter;
 
-        public UserParameterValue(String parameterName, Function<String, ITimeValue> valueResolver)
+        public ParameterValue(String parameterName, Function<String, ITimeValue> valueResolver)
         {
             this.parameterName = parameterName;
             this.valueResolver = valueResolver;
@@ -131,7 +149,7 @@ public final class TimeValues
                 }
                 if(parameter == null)
                 {
-                    throw new IllegalArgumentException("Couldn't resolve user value " + parameterName);
+                    throw new IllegalArgumentException("Couldn't resolve parameter value " + parameterName);
                 }
             }
         }
@@ -158,7 +176,7 @@ public final class TimeValues
                 return false;
             if (getClass() != obj.getClass())
                 return false;
-            UserParameterValue other = (UserParameterValue) obj;
+            ParameterValue other = (ParameterValue) obj;
             resolve();
             other.resolve();
             return Objects.equal(parameter, other.parameter);
@@ -184,6 +202,8 @@ public final class TimeValues
                 return null;
             }
 
+            final TypeAdapter<ImmutableList<ITimeValue>> parameterListAdapter = gson.getAdapter(new TypeToken<ImmutableList<ITimeValue>>(){});
+
             return (TypeAdapter<T>)new TypeAdapter<ITimeValue>()
             {
                 public void write(JsonWriter out, ITimeValue parameter) throws IOException
@@ -192,7 +212,14 @@ public final class TimeValues
                     {
                         out.value(((ConstValue)parameter).output);
                     }
-                    // TODO linear value
+                    else if(parameter instanceof SimpleExprValue)
+                    {
+                        SimpleExprValue p = (SimpleExprValue)parameter;
+                        out.beginArray();
+                        out.value(p.operators);
+                        parameterListAdapter.write(out, p.args);
+                        out.endArray();
+                    }
                     else if(parameter instanceof IStringSerializable)
                     {
                         out.value("#" + ((IStringSerializable)parameter).getName());
@@ -206,6 +233,11 @@ public final class TimeValues
                     {
                     case NUMBER:
                         return new ConstValue((float)in.nextDouble());
+                    case BEGIN_ARRAY:
+                        in.beginArray();
+                        ITimeValue p = new SimpleExprValue(in.nextString(), parameterListAdapter.read(in));
+                        in.endArray();
+                        return p;
                     case STRING:
                         String string = in.nextString();
                         if(string.equals("#identity"))
@@ -217,7 +249,7 @@ public final class TimeValues
                             throw new IOException("expected TimeValue reference, got \"" + string + "\"");
                         }
                         // User Parameter TimeValue
-                        return new UserParameterValue(string.substring(1), valueResolver.get());
+                        return new ParameterValue(string.substring(1), valueResolver.get());
                     default:
                         throw new IOException("expected TimeValue, got " + in.peek());
                     }

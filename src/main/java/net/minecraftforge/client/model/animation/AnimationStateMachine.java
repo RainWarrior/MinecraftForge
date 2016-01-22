@@ -22,6 +22,7 @@ import com.google.gson.annotations.SerializedName;
  */
 public class AnimationStateMachine
 {
+    private final ImmutableMap<String, ITimeValue> parameters;
     private final ImmutableMap<String, IClip> clips;
     private final ImmutableList<String> states;
     private final ImmutableTable<String, String, IClipProvider> transitions;
@@ -48,15 +49,24 @@ public class AnimationStateMachine
 
     protected AnimationStateMachine()
     {
-        this(ImmutableMap.<String, IClip>of(), ImmutableList.<String>of(), ImmutableTable.<String, String, IClipProvider>of(), null);
+        this(ImmutableMap.<String, ITimeValue>of(), ImmutableMap.<String, IClip>of(), ImmutableList.<String>of(), ImmutableTable.<String, String, IClipProvider>of(), null);
     }
 
-    public AnimationStateMachine(ImmutableMap<String, IClip> clips, ImmutableList<String> states, ImmutableTable<String, String, IClipProvider> transitions, String startState)
+    public AnimationStateMachine(ImmutableMap<String, ITimeValue> parameters, ImmutableMap<String, IClip> clips, ImmutableList<String> states, ImmutableTable<String, String, IClipProvider> transitions, String startState)
     {
+        this.parameters = parameters;
         this.clips = clips;
         this.states = states;
         this.transitions = transitions;
         this.startState = startState;
+    }
+
+    /**
+     * Used during resolution of parameter references.
+     */
+    ImmutableMap<String, ITimeValue> getParameters()
+    {
+        return parameters;
     }
 
     /**

@@ -2,6 +2,7 @@ package net.minecraftforge.client.model.animation;
 
 import java.io.IOException;
 
+import com.google.common.collect.ImmutableList;
 import com.google.gson.Gson;
 import com.google.gson.TypeAdapter;
 import com.google.gson.TypeAdapterFactory;
@@ -46,7 +47,7 @@ public class ClipProviders
         public ClipLength apply(float start)
         {
             float length = this.length.apply(start);
-            ITimeValue progress = new TimeValues.LinearValue(1f / length, -start / length);
+            ITimeValue progress = new TimeValues.SimpleExprValue("-/", ImmutableList.of(TimeValues.IdentityValue.instance, new TimeValues.ConstValue(length)));
             return new ClipLength(new Clips.SlerpClip(from, to, input, progress), length);
         }
     }

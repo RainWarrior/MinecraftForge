@@ -1,7 +1,11 @@
 {
+  "parameters": {
+    "world_to_cycle": [ "/", [ "#cycle_length" ] ],
+    "round_cycle": [ "F", [ "#cycle_length" ] ]
+  },
   "clips": {
     "default": "forgedebugmodelanimation:block/engine_ring@default",
-    "moving": [ "forgedebugmodelanimation:block/engine_ring@moving", "#worldToCycle" ]
+    "moving": [ "forgedebugmodelanimation:block/engine_ring@moving", "#world_to_cycle" ]
   },
   "states": [
     "default",
@@ -11,12 +15,12 @@
     "default -> moving": [
       "length",
       "#default",
-      "#roundCycle"
+      "#round_cycle"
     ],
     "moving -> default": [
       "length",
       "#moving",
-      "#roundCycle"
+      "#round_cycle"
     ]
   },
   "start_state": "moving"

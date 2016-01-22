@@ -22,7 +22,6 @@ import net.minecraftforge.fml.common.FMLLog;
 import org.apache.logging.log4j.Level;
 
 import com.google.common.base.Function;
-import com.google.common.base.Functions;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableTable;
@@ -63,6 +62,7 @@ public enum Animation implements IResourceManagerReloadListener
     }
 
     private final AnimationStateMachine missing = new AnimationStateMachine(
+        ImmutableMap.<String, ITimeValue>of(),
         ImmutableMap.of("missingno", (IClip)Clips.IdentityClip.instance),
         ImmutableList.of("missingno"),
         ImmutableTable.<String, String, IClipProvider>of(),
@@ -94,6 +94,26 @@ public enum Animation implements IResourceManagerReloadListener
         }
     }
 
+    private static final class ParameterResolver implements Function<String, ITimeValue>
+    {
+        private final ImmutableMap<String, ITimeValue> customParameters;
+        private AnimationStateMachine asm;
+
+        public ParameterResolver(ImmutableMap<String, ITimeValue> customParameters)
+        {
+            this.customParameters = customParameters;
+        }
+
+        public ITimeValue apply(String name)
+        {
+            if(asm.getParameters().containsKey(name))
+            {
+                return asm.getParameters().get(name);
+            }
+            return customParameters.get(name);
+        }
+    }
+
     /**
      * Entry point for loading animation state machines.
      */
@@ -102,11 +122,13 @@ public enum Animation implements IResourceManagerReloadListener
         try
         {
             ClipResolver clipResolver = new ClipResolver();
+            ParameterResolver parameterResolver = new ParameterResolver(customParameters);
             Clips.CommonClipTypeAdapterFactory.INSTANCE.setClipResolver(clipResolver);
-            TimeValues.CommonTimeValueTypeAdapterFactory.INSTANCE.setValueResolver(Functions.forMap(customParameters));
+            TimeValues.CommonTimeValueTypeAdapterFactory.INSTANCE.setValueResolver(parameterResolver);
             IResource resource = manager.getResource(location);
             AnimationStateMachine asm = asmGson.fromJson(new InputStreamReader(resource.getInputStream(), StandardCharsets.UTF_8), AnimationStateMachine.class);
             clipResolver.asm = asm;
+            parameterResolver.asm = asm;
             asm.initialize();
             //String json = asmGson.toJson(asm);
             //System.out.println(location + ": " + json);

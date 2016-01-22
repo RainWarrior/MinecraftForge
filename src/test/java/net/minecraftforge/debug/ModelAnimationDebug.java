@@ -266,22 +266,11 @@ public class ModelAnimationDebug
             CycleValue other = (CycleValue) obj;
             return getCycleLength() == other.getCycleLength();
         }
-    }
 
-    private static abstract class WorldToCycle extends CycleValue
-    {
+        @Override
         public float apply(float input)
         {
-            return input / getCycleLength();
-        }
-    }
-
-    private static abstract class RoundCycle extends CycleValue
-    {
-        public float apply(float input)
-        {
-            float l = getCycleLength();
-            return (float)Math.ceil(input / l) * l - input;
+            return getCycleLength();
         }
     }
 
@@ -292,14 +281,7 @@ public class ModelAnimationDebug
 
         public Chest() {
             asm = Animation.INSTANCE.load(new ResourceLocation(MODID.toLowerCase(), "asms/block/engine.json"), ImmutableMap.<String, ITimeValue>of(
-                "worldToCycle", new WorldToCycle()
-                {
-                    protected float getCycleLength()
-                    {
-                        return Chest.this.cycleLength;
-                    }
-                },
-                "roundCycle", new RoundCycle()
+                "cycle_length", new CycleValue()
                 {
                     protected float getCycleLength()
                     {
@@ -362,14 +344,7 @@ public class ModelAnimationDebug
             super(world);
             setSize(1, 1);
             asm = Animation.INSTANCE.load(new ResourceLocation(MODID.toLowerCase(), "asms/block/engine.json"), ImmutableMap.<String, ITimeValue>of(
-                "worldToCycle", new WorldToCycle()
-                {
-                    protected float getCycleLength()
-                    {
-                        return EntityChest.this.getHealth() / 5;
-                    }
-                },
-                "roundCycle", new RoundCycle()
+                "cycle_length", new CycleValue()
                 {
                     protected float getCycleLength()
                     {
