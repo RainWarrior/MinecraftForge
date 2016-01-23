@@ -3,10 +3,7 @@ package net.minecraftforge.client.model.animation;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStreamReader;
-import java.lang.reflect.ParameterizedType;
 import java.nio.charset.StandardCharsets;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 import net.minecraft.block.properties.PropertyBool;
 import net.minecraft.client.resources.IResource;
@@ -24,17 +21,9 @@ import org.apache.logging.log4j.Level;
 import com.google.common.base.Function;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.ImmutableTable;
-import com.google.common.collect.Table;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonParseException;
-import com.google.gson.TypeAdapter;
-import com.google.gson.TypeAdapterFactory;
-import com.google.gson.reflect.TypeToken;
-import com.google.gson.stream.JsonReader;
-import com.google.gson.stream.JsonToken;
-import com.google.gson.stream.JsonWriter;
 
 public enum Animation implements IResourceManagerReloadListener
 {
@@ -65,7 +54,7 @@ public enum Animation implements IResourceManagerReloadListener
         ImmutableMap.<String, ITimeValue>of(),
         ImmutableMap.of("missingno", (IClip)Clips.IdentityClip.instance),
         ImmutableList.of("missingno"),
-        ImmutableTable.<String, String, IClipProvider>of(),
+        ImmutableMap.<String, String>of(),
         "missingno");
 
     {
@@ -76,9 +65,8 @@ public enum Animation implements IResourceManagerReloadListener
         .registerTypeAdapter(ImmutableList.class, JsonUtils.ImmutableListTypeAdapter.INSTANCE)
         .registerTypeAdapter(ImmutableMap.class, JsonUtils.ImmutableMapTypeAdapter.INSTANCE)
         .registerTypeAdapterFactory(Clips.CommonClipTypeAdapterFactory.INSTANCE)
-        .registerTypeAdapterFactory(ClipProviders.CommonClipProviderTypeAdapterFactory.INSTANCE)
+        //.registerTypeAdapterFactory(ClipProviders.CommonClipProviderTypeAdapterFactory.INSTANCE)
         .registerTypeAdapterFactory(TimeValues.CommonTimeValueTypeAdapterFactory.INSTANCE)
-        .registerTypeAdapterFactory(ClipProviderTableTypeAdapterFactory.INSTANCE)
         .setPrettyPrinting()
         .enableComplexMapKeySerialization()
         .disableHtmlEscaping()
@@ -170,36 +158,7 @@ public enum Animation implements IResourceManagerReloadListener
             );
             afsm.initialize();
             return afsm;
-        }
-        else if(location.equals(new ResourceLocation("forgedebugmodelanimation", "asms/block/engine.json")))
-        {
-            final ITimeValue worldToCycle = customParameters.containsKey("worldToCycle") ? customParameters.get("worldToCycle") : TimeValues.IdentityValue.instance;
-            final ITimeValue roundCycle = customParameters.containsKey("roundCycle") ? customParameters.get("roundCycle") : TimeValues.IdentityValue.instance;
-
-            final IClip default_ = Clips.getModelClipNode(new ResourceLocation("forgedebugmodelanimation", "block/engine_ring"), "default");
-            IClip movingTmp = Clips.getModelClipNode(new ResourceLocation("forgedebugmodelanimation", "block/engine_ring"), "moving");
-            final IClip moving = new Clips.TimeClip(movingTmp, worldToCycle);
-
-            //IClipProvider d2m = new ClipProviders.ClipLengthProvider(new Clips.ClipReference("default"), roundCycle);
-            //IClipProvider m2d = new ClipProviders.ClipLengthProvider(new Clips.ClipReference("moving"), roundCycle);
-            IClipProvider d2m = new ClipProviders.ClipLengthProvider(default_, roundCycle);
-            IClipProvider m2d = new ClipProviders.ClipLengthProvider(moving, roundCycle);
-
-            ImmutableTable.Builder<String, String, IClipProvider> builder = ImmutableTable.builder();
-            builder.put("default", "moving", d2m);
-            builder.put("moving", "default", m2d);
-
-            AnimationStateMachine afsm = new AnimationStateMachine(
-                ImmutableMap.of("default", default_, "moving", moving),
-                ImmutableList.of("default", "moving"),
-                builder.build(),
-                "moving"
-            );
-            System.out.println("afsm: " + asmGson.toJson(afsm));
-            afsm.initialize();
-            return afsm;
-        }
-        else return missing;*/
+        }*/
     }
 
     private final Gson mbaGson = new GsonBuilder()
@@ -243,155 +202,6 @@ public enum Animation implements IResourceManagerReloadListener
         {
             FMLLog.log(Level.ERROR, e, "Exception loading vanilla model aniamtion %s, skipping", armatureLocation);
             return defaultModelBlockAnimation;
-        }
-
-        /*ImmutableMap<String, ImmutableMap<Integer, float[]>> joints = ImmutableMap.of();
-        ImmutableMap<String, ModelBlockAnimation.MBClip> clips = ImmutableMap.of();
-
-        if(armatureLocation.getResourcePath().endsWith("engine_ring"))
-        {
-            joints = ImmutableMap.of(
-                "ring", ImmutableMap.of(
-                    0, new float[]{ 1 }
-                ),
-                "chamber", ImmutableMap.of(
-                    1, new float[]{ 1 }
-                ),
-                "trunk", ImmutableMap.of(
-                    2, new float[]{ 1 }
-                )
-            );
-            ModelBlockAnimation.MBClip moving = new ModelBlockAnimation.MBClip(true, ImmutableMap.of(
-                "ring", ImmutableList.of(
-                    new ModelBlockAnimation.MBVariableClip(
-                        ModelBlockAnimation.Parameter.Variable.Y,
-                        ModelBlockAnimation.Parameter.Type.UNIFORM,
-                        ModelBlockAnimation.Parameter.Interpolation.LINEAR,
-                        new float[]{ .00f, .08f, .25f, .42f, .50f, .42f, .25f, .08f }
-                    ),
-                    new ModelBlockAnimation.MBVariableClip(
-                        ModelBlockAnimation.Parameter.Variable.YROT,
-                        ModelBlockAnimation.Parameter.Type.UNIFORM,
-                        ModelBlockAnimation.Parameter.Interpolation.NEAREST,
-                        new float[]{ 1 }
-                    ),
-                    new ModelBlockAnimation.MBVariableClip(
-                        ModelBlockAnimation.Parameter.Variable.ANGLE,
-                        ModelBlockAnimation.Parameter.Type.UNIFORM,
-                        ModelBlockAnimation.Parameter.Interpolation.LINEAR,
-                        new float[]{ 0, 120, 240, 0, 120, 240, 0, 120, 240, 0, 120, 240 }
-                    )
-                ),
-                /*ImmutableList.of(
-                    new ModelBlockAnimation.MBVariableClip(
-                        ModelBlockAnimation.Parameter.Variable.Y,
-                        ModelBlockAnimation.Parameter.Type.Uniform,
-                        ModelBlockAnimation.Parameter.Interpolation.Nearest,
-                        new float[]{ .0f, .5f }
-                    )
-                ),
-                ImmutableList.of(
-                    new ModelBlockAnimation.MBVariableClip(
-                        ModelBlockAnimation.Parameter.Variable.Y,
-                        ModelBlockAnimation.Parameter.Type.Uniform,
-                        ModelBlockAnimation.Parameter.Interpolation.Nearest,
-                        new float[]{ .0f, -.5f }
-                    )
-                ),* /
-                "chamber", ImmutableList.of(
-                    new ModelBlockAnimation.MBVariableClip(
-                        ModelBlockAnimation.Parameter.Variable.SCALE,
-                        ModelBlockAnimation.Parameter.Type.UNIFORM,
-                        ModelBlockAnimation.Parameter.Interpolation.NEAREST,
-                        new float[]{ 0, 1 }
-                    )
-                ),
-                "trunk", ImmutableList.of(
-                    new ModelBlockAnimation.MBVariableClip(
-                        ModelBlockAnimation.Parameter.Variable.SCALE,
-                        ModelBlockAnimation.Parameter.Type.UNIFORM,
-                        ModelBlockAnimation.Parameter.Interpolation.NEAREST,
-                        new float[]{ 1, 0 }
-                    )
-                )
-            ));
-
-            clips = ImmutableMap.<String, ModelBlockAnimation.MBClip>of(
-                "default", new ModelBlockAnimation.MBClip(false, ImmutableMap.<String, ImmutableList<ModelBlockAnimation.MBVariableClip>>of()),
-                "moving", moving
-            );
-        }
-
-        if(!clips.isEmpty())
-        {
-            ModelBlockAnimation mba = new ModelBlockAnimation(
-                joints,
-                clips
-            );
-            String json = mbaGson.toJson(mba);
-            System.out.println(armatureLocation + ": " + json);
-            return mba;
-        }*/
-    }
-
-    public static enum ClipProviderTableTypeAdapterFactory implements TypeAdapterFactory
-    {
-        INSTANCE;
-
-        private final Pattern arrow = Pattern.compile("^(.*) -> (.*)$");
-
-        @SuppressWarnings("unchecked")
-        public <T> TypeAdapter<T> create(Gson gson, TypeToken<T> typeToken)
-        {
-            if(typeToken.getRawType() != ImmutableTable.class || !(typeToken.getType() instanceof ParameterizedType))
-            {
-                return null;
-            }
-            ParameterizedType type = (ParameterizedType)typeToken.getType();
-            if(
-                type.getActualTypeArguments()[0] != String.class ||
-                type.getActualTypeArguments()[1] != String.class ||
-                type.getActualTypeArguments()[2] != IClipProvider.class) {
-                return null;
-            }
-            System.out.println("ClipProviderFactory OK");
-
-            final TypeAdapter<IClipProvider> clipProviderAdapter = gson.getAdapter(IClipProvider.class);
-
-            return (TypeAdapter<T>)new TypeAdapter<ImmutableTable<String, String, IClipProvider>>()
-            {
-                public void write(JsonWriter out, ImmutableTable<String, String, IClipProvider> table) throws IOException
-                {
-                    out.beginObject();
-                    for(Table.Cell<String, String, IClipProvider> cell : table.cellSet())
-                    {
-                        out.name(cell.getRowKey() + " -> " + cell.getColumnKey());
-                        clipProviderAdapter.write(out, cell.getValue());
-                    }
-                    out.endObject();
-                }
-
-                public ImmutableTable<String, String, IClipProvider> read(JsonReader in) throws IOException
-                {
-                    ImmutableTable.Builder<String, String, IClipProvider> builder = ImmutableTable.builder();
-                    in.beginObject();
-                    while(in.peek() != JsonToken.END_OBJECT)
-                    {
-                        String key = in.nextName();
-                        Matcher matcher = arrow.matcher(key);
-                        if(!matcher.matches())
-                        {
-                            throw new IOException("Expected pair of clip names, got \"" + key + "\"");
-                        }
-                        String from = matcher.group(1);
-                        String to = matcher.group(2);
-                        IClipProvider provider = clipProviderAdapter.read(in);
-                        builder.put(from, to, provider);
-                    }
-                    in.endObject();
-                    return builder.build();
-                }
-            };
         }
     }
 

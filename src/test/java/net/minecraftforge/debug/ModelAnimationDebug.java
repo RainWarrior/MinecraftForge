@@ -39,6 +39,7 @@ import net.minecraftforge.client.model.animation.AnimationTESR;
 import net.minecraftforge.client.model.animation.Event;
 import net.minecraftforge.client.model.animation.IAnimationProvider;
 import net.minecraftforge.client.model.animation.ITimeValue;
+import net.minecraftforge.client.model.animation.TimeValues.VariableValue;
 import net.minecraftforge.client.model.b3d.B3DLoader;
 import net.minecraftforge.client.model.pipeline.VertexLighterSmoothAo;
 import net.minecraftforge.common.property.ExtendedBlockState;
@@ -56,7 +57,6 @@ import net.minecraftforge.fml.common.registry.GameRegistry;
 
 import org.apache.commons.lang3.tuple.Pair;
 
-import com.google.common.base.Objects;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.UnmodifiableIterator;
 
@@ -244,50 +244,16 @@ public class ModelAnimationDebug
     @EventHandler
     public void preInit(FMLPreInitializationEvent event) { proxy.preInit(event); }
 
-    private static abstract class CycleValue implements ITimeValue
-    {
-        protected abstract float getCycleLength();
-
-        @Override
-        public int hashCode()
-        {
-            return Objects.hashCode(getCycleLength());
-        }
-
-        @Override
-        public boolean equals(Object obj)
-        {
-            if (this == obj)
-                return true;
-            if (obj == null)
-                return false;
-            if (getClass() != obj.getClass())
-                return false;
-            CycleValue other = (CycleValue) obj;
-            return getCycleLength() == other.getCycleLength();
-        }
-
-        @Override
-        public float apply(float input)
-        {
-            return getCycleLength();
-        }
-    }
-
     private static class Chest extends TileEntity implements IAnimationProvider
     {
         private final AnimationStateMachine asm;
-        private float cycleLength = 4;
+        private final VariableValue cycleLength = new VariableValue(4);
+        private final VariableValue clickTime = new VariableValue(Float.NEGATIVE_INFINITY);
 
         public Chest() {
             asm = Animation.INSTANCE.load(new ResourceLocation(MODID.toLowerCase(), "asms/block/engine.json"), ImmutableMap.<String, ITimeValue>of(
-                "cycle_length", new CycleValue()
-                {
-                    protected float getCycleLength()
-                    {
-                        return Chest.this.cycleLength;
-                    }
-                }
+                "cycle_length", cycleLength,
+                "click_time", clickTime
             ));
         }
 
@@ -314,18 +280,17 @@ public class ModelAnimationDebug
         {
             if(sneaking)
             {
-                cycleLength = 6 - cycleLength;
+                cycleLength.setValue(6 - cycleLength.apply(0));
             }
-            else if(!asm.transitioning())
+            else if(asm.currentState().equals("default"))
             {
-                if(asm.currentState().equals("default"))
-                {
-                    asm.transition(Animation.getWorldTime(getWorld()), "moving");
-                }
-                else if(asm.currentState().equals("moving"))
-                {
-                    asm.transition(Animation.getWorldTime(getWorld()), "default");
-                }
+                clickTime.setValue(Animation.getWorldTime(getWorld()));
+                asm.transition("starting");
+            }
+            else if(asm.currentState().equals("moving"))
+            {
+                clickTime.setValue(Animation.getWorldTime(getWorld()));
+                asm.transition("stopping");
             }
         }
 
@@ -338,19 +303,14 @@ public class ModelAnimationDebug
     private static class EntityChest extends EntityLiving implements IAnimationProvider
     {
         private final AnimationStateMachine asm;
+        private final VariableValue cycleLength = new VariableValue(4);
 
         public EntityChest(World world)
         {
             super(world);
             setSize(1, 1);
             asm = Animation.INSTANCE.load(new ResourceLocation(MODID.toLowerCase(), "asms/block/engine.json"), ImmutableMap.<String, ITimeValue>of(
-                "cycle_length", new CycleValue()
-                {
-                    protected float getCycleLength()
-                    {
-                        return EntityChest.this.getHealth() / 5;
-                    }
-                }
+                "cycle_length", cycleLength
             ));
         }
 
@@ -362,6 +322,16 @@ public class ModelAnimationDebug
         public AnimationStateMachine asm()
         {
             return asm;
+        }
+
+        @Override
+        public void onDataWatcherUpdate(int id)
+        {
+            super.onDataWatcherUpdate(id);
+            if(id == 6) // health
+            {
+                cycleLength.setValue(getHealth() / 5);
+            }
         }
 
         @Override

@@ -295,6 +295,40 @@ public final class Clips
     }
 
     /**
+     * Clip + Event, triggers when parameter becomes non-negative.
+     */
+    public static final class TriggerClip implements IClip
+    {
+        private final IClip clip;
+        private final ITimeValue parameter;
+        private final String event;
+
+        public TriggerClip(IClip clip, ITimeValue parameter, String event)
+        {
+            this.clip = clip;
+            this.parameter = parameter;
+            this.event = event;
+        }
+
+        public IJointClip apply(IJoint joint)
+        {
+            return clip.apply(joint);
+        }
+
+        public UnmodifiableIterator<Event> pastEvents(float lastPollTime, float time)
+        {
+            if(parameter.apply(lastPollTime) < 0 && parameter.apply(time) >= 0)
+            {
+                return Iterators.mergeSorted(ImmutableSet.of(
+                    clip.pastEvents(lastPollTime, time),
+                    ImmutableSet.of(new Event(event, 0)).iterator()
+                ), Ordering.<Event>natural());
+            }
+            return clip.pastEvents(lastPollTime, time);
+        }
+    }
+
+    /**
       * Reference to another clip.
       * Should only exist during debugging.
       */
@@ -399,9 +433,33 @@ public final class Clips
                     else if(clip instanceof TimeClip)
                     {
                         out.beginArray();
+                        out.value("apply");
                         TimeClip timeClip = (TimeClip)clip;
                         write(out, timeClip.childClip);
                         parameterAdapter.write(out, timeClip.time);
+                        out.endArray();
+                        return;
+                    }
+                    else if(clip instanceof SlerpClip)
+                    {
+                        out.beginArray();
+                        out.value("slerp");
+                        SlerpClip slerpClip = (SlerpClip)clip;
+                        write(out, slerpClip.from);
+                        write(out, slerpClip.to);
+                        parameterAdapter.write(out, slerpClip.input);
+                        parameterAdapter.write(out, slerpClip.progress);
+                        out.endArray();
+                        return;
+                    }
+                    else if(clip instanceof TriggerClip)
+                    {
+                        out.beginArray();
+                        out.value("trigger_positive");
+                        TriggerClip triggerClip = (TriggerClip)clip;
+                        write(out, triggerClip.clip);
+                        parameterAdapter.write(out, triggerClip.parameter);
+                        out.value(triggerClip.event);
                         out.endArray();
                         return;
                     }
@@ -420,12 +478,28 @@ public final class Clips
                     switch(in.peek())
                     {
                         case BEGIN_ARRAY:
-                            // TimeClip
                             in.beginArray();
-                            IClip childClip = read(in);
-                            ITimeValue time = parameterAdapter.read(in);
+                            String type = in.nextString();
+                            IClip clip;
+                            // TimeClip
+                            if("apply".equals(type))
+                            {
+                                clip = new TimeClip(read(in), parameterAdapter.read(in));
+                            }
+                            else if("slerp".equals(type))
+                            {
+                                clip = new SlerpClip(read(in), read(in), parameterAdapter.read(in), parameterAdapter.read(in));
+                            }
+                            else if("trigger_positive".equals(type))
+                            {
+                                clip = new TriggerClip(read(in), parameterAdapter.read(in), in.nextString());
+                            }
+                            else
+                            {
+                                throw new IOException("Unknown Clip type \"" + type + "\"");
+                            }
                             in.endArray();
-                            return new TimeClip(childClip, time);
+                            return clip;
                         case STRING:
                             String string = in.nextString();
                             // IdentityClip

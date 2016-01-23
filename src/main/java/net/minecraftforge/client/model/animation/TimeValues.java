@@ -1,6 +1,7 @@
 package net.minecraftforge.client.model.animation;
 
 import java.io.IOException;
+import java.util.regex.Pattern;
 
 import net.minecraft.util.IStringSerializable;
 
@@ -12,6 +13,7 @@ import com.google.gson.TypeAdapter;
 import com.google.gson.TypeAdapterFactory;
 import com.google.gson.reflect.TypeToken;
 import com.google.gson.stream.JsonReader;
+import com.google.gson.stream.JsonToken;
 import com.google.gson.stream.JsonWriter;
 
 /**
@@ -68,8 +70,52 @@ public final class TimeValues
         }
     }
 
+    /**
+     * Simple value holder.
+     */
+    public static final class VariableValue implements ITimeValue
+    {
+        private float output;
+
+        public VariableValue(float initialValue)
+        {
+            this.output = initialValue;
+        }
+
+        public void setValue(float newValue)
+        {
+            this.output = newValue;
+        }
+
+        public float apply(float input)
+        {
+            return output;
+        }
+
+        @Override
+        public int hashCode()
+        {
+            return Objects.hashCode(output);
+        }
+
+        @Override
+        public boolean equals(Object obj)
+        {
+            if (this == obj)
+                return true;
+            if (obj == null)
+                return false;
+            if (getClass() != obj.getClass())
+                return false;
+            VariableValue other = (VariableValue) obj;
+            return output == other.output;
+        }
+    }
+
     public static final class SimpleExprValue implements ITimeValue
     {
+        private static final Pattern opsPattern = Pattern.compile("[+\\-*/mMrRfF]+");
+
         private final String operators;
         private final ImmutableList<ITimeValue> args;
 
@@ -119,6 +165,43 @@ public final class TimeValues
                 return false;
             SimpleExprValue other = (SimpleExprValue) obj;
             return Objects.equal(operators, other.operators) && Objects.equal(args, other.args);
+        }
+    }
+
+    public static final class CompositionValue implements ITimeValue
+    {
+        private final ITimeValue g;
+        private final ITimeValue f;
+
+        public CompositionValue(ITimeValue g, ITimeValue f)
+        {
+            super();
+            this.g = g;
+            this.f = f;
+        }
+
+        public float apply(float input)
+        {
+            return g.apply(f.apply(input));
+        }
+
+        @Override
+        public int hashCode()
+        {
+            return Objects.hashCode(g, f);
+        }
+
+        @Override
+        public boolean equals(Object obj)
+        {
+            if (this == obj)
+                return true;
+            if (obj == null)
+                return false;
+            if (getClass() != obj.getClass())
+                return false;
+            CompositionValue other = (CompositionValue) obj;
+            return Objects.equal(g, other.g) && Objects.equal(f, other.f);
         }
     }
 
@@ -202,8 +285,6 @@ public final class TimeValues
                 return null;
             }
 
-            final TypeAdapter<ImmutableList<ITimeValue>> parameterListAdapter = gson.getAdapter(new TypeToken<ImmutableList<ITimeValue>>(){});
-
             return (TypeAdapter<T>)new TypeAdapter<ITimeValue>()
             {
                 public void write(JsonWriter out, ITimeValue parameter) throws IOException
@@ -217,14 +298,25 @@ public final class TimeValues
                         SimpleExprValue p = (SimpleExprValue)parameter;
                         out.beginArray();
                         out.value(p.operators);
-                        parameterListAdapter.write(out, p.args);
+                        for(ITimeValue v : p.args)
+                        {
+                            write(out, v);
+                        }
+                        out.endArray();
+                    }
+                    else if(parameter instanceof CompositionValue)
+                    {
+                        CompositionValue p = (CompositionValue)parameter;
+                        out.beginArray();
+                        out.value("compose");
+                        write(out, p.g);
+                        write(out, p.f);
                         out.endArray();
                     }
                     else if(parameter instanceof IStringSerializable)
                     {
                         out.value("#" + ((IStringSerializable)parameter).getName());
                     }
-                    // TODO custom value writing?
                 }
 
                 public ITimeValue read(JsonReader in) throws IOException
@@ -235,7 +327,25 @@ public final class TimeValues
                         return new ConstValue((float)in.nextDouble());
                     case BEGIN_ARRAY:
                         in.beginArray();
-                        ITimeValue p = new SimpleExprValue(in.nextString(), parameterListAdapter.read(in));
+                        String type = in.nextString();
+                        ITimeValue p;
+                        if(SimpleExprValue.opsPattern.matcher(type).matches())
+                        {
+                            ImmutableList.Builder<ITimeValue> builder = ImmutableList.builder();
+                            while(in.peek() != JsonToken.END_ARRAY)
+                            {
+                                builder.add(read(in));
+                            }
+                            p = new SimpleExprValue(type, builder.build());
+                        }
+                        else if("compose".equals(type))
+                        {
+                            p = new CompositionValue(read(in), read(in));
+                        }
+                        else
+                        {
+                            throw new IOException("Unknown TimeValue type \"" + type + "\"");
+                        }
                         in.endArray();
                         return p;
                     case STRING:
@@ -246,12 +356,12 @@ public final class TimeValues
                         }
                         if(!string.startsWith("#"))
                         {
-                            throw new IOException("expected TimeValue reference, got \"" + string + "\"");
+                            throw new IOException("Expected TimeValue reference, got \"" + string + "\"");
                         }
                         // User Parameter TimeValue
                         return new ParameterValue(string.substring(1), valueResolver.get());
                     default:
-                        throw new IOException("expected TimeValue, got " + in.peek());
+                        throw new IOException("Expected TimeValue, got " + in.peek());
                     }
                 }
             };

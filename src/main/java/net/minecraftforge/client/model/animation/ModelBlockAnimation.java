@@ -240,9 +240,9 @@ public class ModelBlockAnimation
                     if(curKey != null)
                     {
                         float checkStopTime = stopTime;
-                        if(curKey + events.get(curKey).offset() < checkStopTime) checkStopTime--;
-                        if(curKey + events.get(curKey).offset() > checkStopTime + 1) checkStopTime++;
-                        if(curKey < checkStopTime)
+                        while(curKey + events.get(curKey).offset() < checkStopTime) checkStopTime--;
+                        while(curKey + events.get(curKey).offset() >= checkStopTime + 1) checkStopTime++;
+                        if(curKey <= checkStopTime)
                         {
                             curKey = null;
                         }

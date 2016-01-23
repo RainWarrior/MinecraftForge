@@ -7,12 +7,13 @@ import net.minecraftforge.client.model.IModelState;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.commons.lang3.tuple.Triple;
 
+import com.google.common.base.Predicate;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.ImmutableTable;
+import com.google.common.collect.Iterators;
 import com.google.common.collect.UnmodifiableIterator;
 import com.google.gson.annotations.SerializedName;
 
@@ -25,15 +26,12 @@ public class AnimationStateMachine
     private final ImmutableMap<String, ITimeValue> parameters;
     private final ImmutableMap<String, IClip> clips;
     private final ImmutableList<String> states;
-    private final ImmutableTable<String, String, IClipProvider> transitions;
+    private final ImmutableMap<String, String> transitions;
     @SerializedName("start_state")
     private final String startState;
 
     private transient String currentStateName;
     private transient IClip currentState;
-    private transient ClipLength currentTransition = null;
-    private transient boolean transitioning = false;
-    private transient float transitionStart = Float.MIN_VALUE;
     private transient float lastPollTime = Float.NEGATIVE_INFINITY;
 
     private static final LoadingCache<Triple<? extends IClip, Float, Float>, Pair<IModelState, UnmodifiableIterator<Event>>> clipCache = CacheBuilder.newBuilder()
@@ -49,10 +47,10 @@ public class AnimationStateMachine
 
     protected AnimationStateMachine()
     {
-        this(ImmutableMap.<String, ITimeValue>of(), ImmutableMap.<String, IClip>of(), ImmutableList.<String>of(), ImmutableTable.<String, String, IClipProvider>of(), null);
+        this(ImmutableMap.<String, ITimeValue>of(), ImmutableMap.<String, IClip>of(), ImmutableList.<String>of(), ImmutableMap.<String, String>of(), null);
     }
 
-    public AnimationStateMachine(ImmutableMap<String, ITimeValue> parameters, ImmutableMap<String, IClip> clips, ImmutableList<String> states, ImmutableTable<String, String, IClipProvider> transitions, String startState)
+    public AnimationStateMachine(ImmutableMap<String, ITimeValue> parameters, ImmutableMap<String, IClip> clips, ImmutableList<String> states, ImmutableMap<String, String> transitions, String startState)
     {
         this.parameters = parameters;
         this.clips = clips;
@@ -101,76 +99,60 @@ public class AnimationStateMachine
         {
             lastPollTime = time;
         }
-        checkTransitionEnd(time);
-        Pair<IModelState, UnmodifiableIterator<Event>> pair;
-        if(transitioning)
-        {
-            pair = clipCache.getUnchecked(Triple.of(currentTransition, lastPollTime, time));
-        }
-        else
-        {
-            pair = clipCache.getUnchecked(Triple.of(currentState, lastPollTime, time));
-        }
+        Pair<IModelState, UnmodifiableIterator<Event>> pair = clipCache.getUnchecked(Triple.of(currentState, lastPollTime, time));
         lastPollTime = time;
-        return pair;
+        ImmutableList<Event> events = ImmutableList.copyOf(pair.getRight());
+        boolean shouldFilter = false;
+        for(Event event : events.reverse())
+        {
+            if(event.event().startsWith("!"))
+            {
+                shouldFilter = true;
+                if(event.event().startsWith("!transition:"))
+                {
+                    String newState = event.event().substring("!transition:".length());
+                    transition(newState);
+                }
+                else
+                {
+                    System.out.println("Unknown special event \"" + event.event() + "\", ignoring");
+                }
+            }
+        }
+        if(!shouldFilter)
+        {
+            return pair;
+        }
+        return Pair.of(pair.getLeft(), Iterators.filter(pair.getRight(), new Predicate<Event>()
+        {
+            public boolean apply(Event event)
+            {
+                return !event.event().startsWith("!");
+            }
+        }));
     }
 
     /**
-     * Initiate transition to a new state.
-     * If another transition is in progress, IllegalStateException is thrown.
+     * Transition to a new state.
      */
-    public void transition(float currentTime, String newClip)
+    public void transition(String newState)
     {
-        checkTransitionEnd(currentTime);
-        System.out.println("transition " + currentTime + " " + newClip);
-        if(transitioning)
+        System.out.println("transition " + newState);
+        IClip nc = clips.get(newState);
+        if(!clips.containsKey(newState) || !states.contains(newState))
         {
-            throw new IllegalStateException("can't transition in a middle of another transition.");
+            throw new IllegalStateException("unknown state: " + newState);
         }
-        IClip nc = clips.get(newClip);
-        if(!clips.containsKey(newClip) || !states.contains(newClip))
+        if(!transitions.get(currentStateName).equals(newState))
         {
-            throw new IllegalStateException("unknown state: " + newClip);
+            throw new IllegalArgumentException("no transition from current clip to the clip " + newState + " found.");
         }
-        if(!transitions.contains(currentStateName, newClip))
-        {
-            throw new IllegalArgumentException("no transition from current clip to the clip " + newClip + " found.");
-        }
-        currentTransition = transitions.get(currentStateName, newClip).apply(currentTime);
-        currentStateName = newClip;
+        currentStateName = newState;
         currentState = nc;
-        transitionStart = currentTime;
-        transitioning = true;
     }
 
-    private void checkTransitionEnd(float time)
-    {
-        if(transitioning && time > transitionStart + currentTransition.getLength())
-        {
-            currentTransition = null;
-            transitioning = false;
-            System.out.println("transition end " + time);
-        }
-    }
-
-    /**
-     * Check if another transition is in progress.
-     */
-    public boolean transitioning()
-    {
-        return transitioning;
-    }
-
-    /**
-     * Get the name of the current state.
-     */
     public String currentState()
     {
-        if(transitioning)
-        {
-            // FIXME
-            return null;
-        }
         return currentStateName;
     }
 }
