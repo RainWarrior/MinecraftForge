@@ -195,8 +195,8 @@ public class ModelBlockAnimation
                     {
                         float checkCurTime = curKey;
                         float checkStopTime = stopTime;
-                        if(checkCurTime > fractTime) checkCurTime--;
-                        if(checkStopTime > fractTime) checkStopTime--;
+                        if(checkCurTime >= fractTime) checkCurTime--;
+                        if(checkStopTime >= fractTime) checkStopTime--;
                         float offset = fractTime - checkCurTime;
                         Event event = events.get(curKey);
                         if(checkCurTime < checkStopTime)

@@ -121,7 +121,7 @@ public class AnimationStateMachine
         }
         if(!shouldFilter)
         {
-            return pair;
+            return Pair.of(pair.getLeft(), events.reverse().iterator());
         }
         return Pair.of(pair.getLeft(), Iterators.filter(pair.getRight(), new Predicate<Event>()
         {
