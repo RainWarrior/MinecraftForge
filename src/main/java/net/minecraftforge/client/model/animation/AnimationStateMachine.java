@@ -3,6 +3,7 @@ package net.minecraftforge.client.model.animation;
 import java.util.concurrent.TimeUnit;
 
 import net.minecraftforge.client.model.IModelState;
+import net.minecraftforge.common.model.animation.IAnimationStateMachine;
 
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.commons.lang3.tuple.Triple;
@@ -17,11 +18,7 @@ import com.google.common.collect.Iterators;
 import com.google.common.collect.UnmodifiableIterator;
 import com.google.gson.annotations.SerializedName;
 
-/**
- * Main controller for the animation logic.
- * API is a simple state machine.
- */
-public class AnimationStateMachine
+class AnimationStateMachine implements IAnimationStateMachine
 {
     private final ImmutableMap<String, ITimeValue> parameters;
     private final ImmutableMap<String, IClip> clips;
@@ -44,11 +41,6 @@ public class AnimationStateMachine
                 return Clips.apply(key.getLeft(), key.getMiddle(), key.getRight());
             }
         });
-
-    protected AnimationStateMachine()
-    {
-        this(ImmutableMap.<String, ITimeValue>of(), ImmutableMap.<String, IClip>of(), ImmutableList.<String>of(), ImmutableMap.<String, String>of(), null);
-    }
 
     public AnimationStateMachine(ImmutableMap<String, ITimeValue> parameters, ImmutableMap<String, IClip> clips, ImmutableList<String> states, ImmutableMap<String, String> transitions, String startState)
     {
@@ -76,9 +68,9 @@ public class AnimationStateMachine
     }
 
     /**
-     * Post-loading initialization method.
+     * post-loading initialization hook.
      */
-    public void initialize()
+    void initialize()
     {
         // setting the starting state
         IClip state = clips.get(startState);
@@ -90,9 +82,6 @@ public class AnimationStateMachine
         currentState = state;
     }
 
-    /**
-     * Sample the state at the current time.
-     */
     public Pair<IModelState, UnmodifiableIterator<Event>> apply(float time)
     {
         if(lastPollTime == Float.NEGATIVE_INFINITY)
@@ -132,9 +121,6 @@ public class AnimationStateMachine
         }));
     }
 
-    /**
-     * Transition to a new state.
-     */
     public void transition(String newState)
     {
         System.out.println("transition " + newState);

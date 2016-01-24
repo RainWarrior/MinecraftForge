@@ -58,6 +58,7 @@ import net.minecraftforge.client.model.animation.IClip;
 import net.minecraftforge.client.model.animation.ModelBlockAnimation;
 import net.minecraftforge.common.ForgeModContainer;
 import net.minecraftforge.common.property.IExtendedBlockState;
+import net.minecraftforge.common.property.Properties;
 import net.minecraftforge.fluids.Fluid;
 import net.minecraftforge.fluids.FluidContainerRegistry;
 import net.minecraftforge.fluids.FluidRegistry;
@@ -577,9 +578,9 @@ public class ModelLoader extends ModelBakery
             if(state instanceof IExtendedBlockState)
             {
                 IExtendedBlockState exState = (IExtendedBlockState)state;
-                if(exState.getUnlistedNames().contains(net.minecraftforge.client.model.animation.Animation.AnimationProperty))
+                if(exState.getUnlistedNames().contains(Properties.AnimationProperty))
                 {
-                    IModelState newState = exState.getValue(net.minecraftforge.client.model.animation.Animation.AnimationProperty);
+                    IModelState newState = exState.getValue(Properties.AnimationProperty);
                     if(newState != null)
                     {
                         return VanillaModelWrapper.this.bake(new ModelStateComposition(modelState, newState), model.getFormat(), bakedTextureGetter);
@@ -856,13 +857,13 @@ public class ModelLoader extends ModelBakery
 
         public IModel loadModel(ResourceLocation modelLocation) throws IOException
         {
-            ModelBlockAnimation animation = Animation.INSTANCE.defaultModelBlockAnimation;
+            String modelPath = modelLocation.getResourcePath();
             if(modelLocation.getResourcePath().startsWith("models/"))
             {
-                String modelPath = modelLocation.getResourcePath().substring("models/".length());
-                ResourceLocation armatureLocation = new ResourceLocation(modelLocation.getResourceDomain(), "armatures/" + modelPath + ".json");
-                animation = Animation.INSTANCE.loadVanillaAnimation(armatureLocation);
+                modelPath = modelPath.substring("models/".length());
             }
+            ResourceLocation armatureLocation = new ResourceLocation(modelLocation.getResourceDomain(), "armatures/" + modelPath + ".json");
+            ModelBlockAnimation animation = Animation.INSTANCE.loadVanillaAnimation(armatureLocation);
             return loader.new VanillaModelWrapper(modelLocation, loader.loadModel(modelLocation), animation);
         }
     }

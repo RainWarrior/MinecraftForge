@@ -5,14 +5,12 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
 
-import net.minecraft.block.properties.PropertyBool;
 import net.minecraft.client.resources.IResource;
 import net.minecraft.client.resources.IResourceManager;
 import net.minecraft.client.resources.IResourceManagerReloadListener;
 import net.minecraft.util.ResourceLocation;
 import net.minecraft.world.World;
-import net.minecraftforge.client.model.IModelState;
-import net.minecraftforge.common.property.IUnlistedProperty;
+import net.minecraftforge.common.model.animation.IAnimationStateMachine;
 import net.minecraftforge.common.util.JsonUtils;
 import net.minecraftforge.fml.common.FMLLog;
 
@@ -29,83 +27,26 @@ public enum Animation implements IResourceManagerReloadListener
 {
     INSTANCE;
 
-    private IResourceManager manager;
-
-    public static final PropertyBool StaticProperty = PropertyBool.create("static");
-    public static final IUnlistedProperty<IModelState> AnimationProperty = new IUnlistedProperty<IModelState>()
-    {
-        public String getName() { return "forge_animation"; }
-        public boolean isValid(IModelState state) { return true; }
-        public Class<IModelState> getType() { return IModelState.class; }
-        public String valueToString(IModelState state) { return state.toString(); }
-    };
-
+    /**
+     * Get the global world time for the current tick.
+     */
     public static float getWorldTime(World world)
     {
         return getWorldTime(world, 0);
     }
 
+    /**
+     * Get the global world time for the current tick + partial tick progress.
+     */
     public static float getWorldTime(World world, float tickProgress)
     {
         return (world.getTotalWorldTime() + tickProgress) / 20;
     }
 
-    private final AnimationStateMachine missing = new AnimationStateMachine(
-        ImmutableMap.<String, ITimeValue>of(),
-        ImmutableMap.of("missingno", (IClip)Clips.IdentityClip.instance),
-        ImmutableList.of("missingno"),
-        ImmutableMap.<String, String>of(),
-        "missingno");
-
-    {
-        missing.initialize();
-    }
-
-    private final Gson asmGson = new GsonBuilder()
-        .registerTypeAdapter(ImmutableList.class, JsonUtils.ImmutableListTypeAdapter.INSTANCE)
-        .registerTypeAdapter(ImmutableMap.class, JsonUtils.ImmutableMapTypeAdapter.INSTANCE)
-        .registerTypeAdapterFactory(Clips.CommonClipTypeAdapterFactory.INSTANCE)
-        //.registerTypeAdapterFactory(ClipProviders.CommonClipProviderTypeAdapterFactory.INSTANCE)
-        .registerTypeAdapterFactory(TimeValues.CommonTimeValueTypeAdapterFactory.INSTANCE)
-        .setPrettyPrinting()
-        .enableComplexMapKeySerialization()
-        .disableHtmlEscaping()
-        .create();
-
-    private static final class ClipResolver implements Function<String, IClip>
-    {
-        private AnimationStateMachine asm;
-
-        public IClip apply(String name)
-        {
-            return asm.getClips().get(name);
-        }
-    }
-
-    private static final class ParameterResolver implements Function<String, ITimeValue>
-    {
-        private final ImmutableMap<String, ITimeValue> customParameters;
-        private AnimationStateMachine asm;
-
-        public ParameterResolver(ImmutableMap<String, ITimeValue> customParameters)
-        {
-            this.customParameters = customParameters;
-        }
-
-        public ITimeValue apply(String name)
-        {
-            if(asm.getParameters().containsKey(name))
-            {
-                return asm.getParameters().get(name);
-            }
-            return customParameters.get(name);
-        }
-    }
-
     /**
-     * Entry point for loading animation state machines.
+     * Load a new instance if AnimationStateMachine at specified location, with specified custom parameters.
      */
-    public AnimationStateMachine load(ResourceLocation location, ImmutableMap<String, ITimeValue> customParameters)
+    public IAnimationStateMachine load(ResourceLocation location, ImmutableMap<String, ITimeValue> customParameters)
     {
         try
         {
@@ -161,18 +102,8 @@ public enum Animation implements IResourceManagerReloadListener
         }*/
     }
 
-    private final Gson mbaGson = new GsonBuilder()
-        .registerTypeAdapter(ImmutableList.class, JsonUtils.ImmutableListTypeAdapter.INSTANCE)
-        .registerTypeAdapter(ImmutableMap.class, JsonUtils.ImmutableMapTypeAdapter.INSTANCE)
-        .setPrettyPrinting()
-        .enableComplexMapKeySerialization()
-        .disableHtmlEscaping()
-        .create();
-
-    public final ModelBlockAnimation defaultModelBlockAnimation = new ModelBlockAnimation(ImmutableMap.<String, ImmutableMap<String, float[]>>of(), ImmutableMap.<String, ModelBlockAnimation.MBClip>of());
-
     /**
-     * Entry point for loading animation tracks associated with vanilla json models.
+     * Load armature associated with a vanilla model.
      */
     public ModelBlockAnimation loadVanillaAnimation(ResourceLocation armatureLocation)
     {
@@ -204,6 +135,70 @@ public enum Animation implements IResourceManagerReloadListener
             return defaultModelBlockAnimation;
         }
     }
+
+    private IResourceManager manager;
+
+    private final AnimationStateMachine missing = new AnimationStateMachine(
+        ImmutableMap.<String, ITimeValue>of(),
+        ImmutableMap.of("missingno", (IClip)Clips.IdentityClip.instance),
+        ImmutableList.of("missingno"),
+        ImmutableMap.<String, String>of(),
+        "missingno");
+
+    {
+        missing.initialize();
+    }
+
+    private final Gson asmGson = new GsonBuilder()
+        .registerTypeAdapter(ImmutableList.class, JsonUtils.ImmutableListTypeAdapter.INSTANCE)
+        .registerTypeAdapter(ImmutableMap.class, JsonUtils.ImmutableMapTypeAdapter.INSTANCE)
+        .registerTypeAdapterFactory(Clips.CommonClipTypeAdapterFactory.INSTANCE)
+        //.registerTypeAdapterFactory(ClipProviders.CommonClipProviderTypeAdapterFactory.INSTANCE)
+        .registerTypeAdapterFactory(TimeValues.CommonTimeValueTypeAdapterFactory.INSTANCE)
+        .setPrettyPrinting()
+        .enableComplexMapKeySerialization()
+        .disableHtmlEscaping()
+        .create();
+
+    private static final class ClipResolver implements Function<String, IClip>
+    {
+        private AnimationStateMachine asm;
+
+        public IClip apply(String name)
+        {
+            return asm.getClips().get(name);
+        }
+    }
+
+    private static final class ParameterResolver implements Function<String, ITimeValue>
+    {
+        private final ImmutableMap<String, ITimeValue> customParameters;
+        private AnimationStateMachine asm;
+
+        public ParameterResolver(ImmutableMap<String, ITimeValue> customParameters)
+        {
+            this.customParameters = customParameters;
+        }
+
+        public ITimeValue apply(String name)
+        {
+            if(asm.getParameters().containsKey(name))
+            {
+                return asm.getParameters().get(name);
+            }
+            return customParameters.get(name);
+        }
+    }
+
+    private final Gson mbaGson = new GsonBuilder()
+        .registerTypeAdapter(ImmutableList.class, JsonUtils.ImmutableListTypeAdapter.INSTANCE)
+        .registerTypeAdapter(ImmutableMap.class, JsonUtils.ImmutableMapTypeAdapter.INSTANCE)
+        .setPrettyPrinting()
+        .enableComplexMapKeySerialization()
+        .disableHtmlEscaping()
+        .create();
+
+    private final ModelBlockAnimation defaultModelBlockAnimation = new ModelBlockAnimation(ImmutableMap.<String, ImmutableMap<String, float[]>>of(), ImmutableMap.<String, ModelBlockAnimation.MBClip>of());
 
     public void onResourceManagerReload(IResourceManager manager)
     {

@@ -14,6 +14,7 @@ import net.minecraftforge.client.MinecraftForgeClient;
 import net.minecraftforge.client.model.IModelState;
 import net.minecraftforge.client.model.ISmartBlockModel;
 import net.minecraftforge.common.property.IExtendedBlockState;
+import net.minecraftforge.common.property.Properties;
 
 import org.apache.commons.lang3.tuple.Pair;
 
@@ -36,7 +37,7 @@ public class AnimationTESR<T extends TileEntity & IAnimationProvider> extends Fa
             IBakedModel model = blockRenderer.getBlockModelShapes().getModelForState(key.getLeft().getClean());
             if(model instanceof ISmartBlockModel)
             {
-                model = ((ISmartBlockModel)model).handleBlockState(key.getLeft().withProperty(Animation.AnimationProperty, key.getRight()));
+                model = ((ISmartBlockModel)model).handleBlockState(key.getLeft().withProperty(Properties.AnimationProperty, key.getRight()));
             }
             return model;
         }
@@ -53,14 +54,14 @@ public class AnimationTESR<T extends TileEntity & IAnimationProvider> extends Fa
         BlockPos pos = te.getPos();
         IBlockAccess world = MinecraftForgeClient.getRegionRenderCache(te.getWorld(), pos);
         IBlockState state = world.getBlockState(pos);
-        if(state.getPropertyNames().contains(Animation.StaticProperty))
+        if(state.getPropertyNames().contains(Properties.StaticProperty))
         {
-            state = state.withProperty(Animation.StaticProperty, false);
+            state = state.withProperty(Properties.StaticProperty, false);
         }
         if(state instanceof IExtendedBlockState)
         {
             IExtendedBlockState exState = (IExtendedBlockState)state;
-            if(exState.getUnlistedNames().contains(Animation.AnimationProperty))
+            if(exState.getUnlistedNames().contains(Properties.AnimationProperty))
             {
                 float time = Animation.getWorldTime(getWorld(), partialTick);
                 Pair<IModelState, UnmodifiableIterator<Event>> pair = te.asm().apply(time);

@@ -34,7 +34,6 @@ import net.minecraftforge.client.model.MultiModel;
 import net.minecraftforge.client.model.TRSRTransformation;
 import net.minecraftforge.client.model.animation.Animation;
 import net.minecraftforge.client.model.animation.AnimationModelBase;
-import net.minecraftforge.client.model.animation.AnimationStateMachine;
 import net.minecraftforge.client.model.animation.AnimationTESR;
 import net.minecraftforge.client.model.animation.Event;
 import net.minecraftforge.client.model.animation.IAnimationProvider;
@@ -42,8 +41,10 @@ import net.minecraftforge.client.model.animation.ITimeValue;
 import net.minecraftforge.client.model.animation.TimeValues.VariableValue;
 import net.minecraftforge.client.model.b3d.B3DLoader;
 import net.minecraftforge.client.model.pipeline.VertexLighterSmoothAo;
+import net.minecraftforge.common.model.animation.IAnimationStateMachine;
 import net.minecraftforge.common.property.ExtendedBlockState;
 import net.minecraftforge.common.property.IUnlistedProperty;
+import net.minecraftforge.common.property.Properties;
 import net.minecraftforge.fml.client.registry.ClientRegistry;
 import net.minecraftforge.fml.client.registry.IRenderFactory;
 import net.minecraftforge.fml.client.registry.RenderingRegistry;
@@ -75,7 +76,7 @@ public class ModelAnimationDebug
     @SidedProxy
     public static CommonProxy proxy;
 
-    public static class CommonProxy
+    public static abstract class CommonProxy
     {
         public void preInit(FMLPreInitializationEvent event)
         {
@@ -89,7 +90,7 @@ public class ModelAnimationDebug
                 @Override
                 public ExtendedBlockState createBlockState()
                 {
-                    return new ExtendedBlockState(this, new IProperty[]{ FACING, Animation.StaticProperty }, new IUnlistedProperty[]{ Animation.AnimationProperty });
+                    return new ExtendedBlockState(this, new IProperty[]{ FACING, Properties.StaticProperty }, new IUnlistedProperty[]{ Properties.AnimationProperty });
                 }
 
                 @Override
@@ -126,7 +127,7 @@ public class ModelAnimationDebug
 
                 @Override
                 public IBlockState getActualState(IBlockState state, IBlockAccess world, BlockPos pos) {
-                    return state.withProperty(Animation.StaticProperty, true);
+                    return state.withProperty(Properties.StaticProperty, true);
                 }
 
                 /*@Override
@@ -155,9 +156,17 @@ public class ModelAnimationDebug
             }, blockName);
             GameRegistry.registerTileEntity(Chest.class, MODID + ":" + "tile_" + blockName);
         }
+
+        public abstract IAnimationStateMachine load(ResourceLocation location, ImmutableMap<String, ITimeValue> parameters);
     }
 
-    public static class ServerProxy extends CommonProxy {}
+    public static class ServerProxy extends CommonProxy
+    {
+        public IAnimationStateMachine load(ResourceLocation location, ImmutableMap<String, ITimeValue> parameters)
+        {
+            return null;
+        }
+    }
 
     public static class ClientProxy extends CommonProxy
     {
@@ -172,7 +181,7 @@ public class ModelAnimationDebug
                 @Override
                 public void handleEvents(Chest chest, float time, UnmodifiableIterator<Event> pastEvents)
                 {
-                    chest.handleEvents(chest, time, pastEvents);
+                    chest.handleEvents(time, pastEvents);
                 }
             });
             String entityName = MODID + ":entity_chest";
@@ -239,6 +248,12 @@ public class ModelAnimationDebug
                 }
             });
         }
+
+        public IAnimationStateMachine load(ResourceLocation location, ImmutableMap<String, ITimeValue> parameters)
+        {
+            return Animation.INSTANCE.load(location, parameters);
+        }
+
     }
 
     @EventHandler
@@ -246,23 +261,23 @@ public class ModelAnimationDebug
 
     private static class Chest extends TileEntity implements IAnimationProvider
     {
-        private final AnimationStateMachine asm;
+        private final IAnimationStateMachine asm;
         private final VariableValue cycleLength = new VariableValue(4);
         private final VariableValue clickTime = new VariableValue(Float.NEGATIVE_INFINITY);
 
         public Chest() {
-            asm = Animation.INSTANCE.load(new ResourceLocation(MODID.toLowerCase(), "asms/block/engine.json"), ImmutableMap.<String, ITimeValue>of(
+            asm = proxy.load(new ResourceLocation(MODID.toLowerCase(), "asms/block/engine.json"), ImmutableMap.<String, ITimeValue>of(
                 "cycle_length", cycleLength,
                 "click_time", clickTime
             ));
         }
 
-        public void handleEvents(Chest chest, float time, UnmodifiableIterator<Event> pastEvents)
+        public void handleEvents(float time, UnmodifiableIterator<Event> pastEvents)
         {
             while(pastEvents.hasNext())
             {
                 Event event = pastEvents.next();
-                System.out.println("Event: " + event.event() + " " + event.offset() + " " + chest.getPos() + " " + time);
+                System.out.println("Event: " + event.event() + " " + event.offset() + " " + getPos() + " " + time);
             }
         }
 
@@ -278,23 +293,26 @@ public class ModelAnimationDebug
 
         public void click(boolean sneaking)
         {
-            if(sneaking)
+            if(asm != null)
             {
-                cycleLength.setValue(6 - cycleLength.apply(0));
-            }
-            else if(asm.currentState().equals("default"))
-            {
-                clickTime.setValue(Animation.getWorldTime(getWorld()));
-                asm.transition("starting");
-            }
-            else if(asm.currentState().equals("moving"))
-            {
-                clickTime.setValue(Animation.getWorldTime(getWorld()));
-                asm.transition("stopping");
+                if(sneaking)
+                {
+                    cycleLength.setValue(6 - cycleLength.apply(0));
+                }
+                else if(asm.currentState().equals("default"))
+                {
+                    clickTime.setValue(Animation.getWorldTime(getWorld()));
+                    asm.transition("starting");
+                }
+                else if(asm.currentState().equals("moving"))
+                {
+                    clickTime.setValue(Animation.getWorldTime(getWorld()));
+                    asm.transition("stopping");
+                }
             }
         }
 
-        public AnimationStateMachine asm()
+        public IAnimationStateMachine asm()
         {
             return asm;
         }
@@ -302,14 +320,14 @@ public class ModelAnimationDebug
 
     private static class EntityChest extends EntityLiving implements IAnimationProvider
     {
-        private final AnimationStateMachine asm;
+        private final IAnimationStateMachine asm;
         private final VariableValue cycleLength = new VariableValue(4);
 
         public EntityChest(World world)
         {
             super(world);
             setSize(1, 1);
-            asm = Animation.INSTANCE.load(new ResourceLocation(MODID.toLowerCase(), "asms/block/engine.json"), ImmutableMap.<String, ITimeValue>of(
+            asm = proxy.load(new ResourceLocation(MODID.toLowerCase(), "asms/block/engine.json"), ImmutableMap.<String, ITimeValue>of(
                 "cycle_length", cycleLength
             ));
         }
@@ -319,7 +337,7 @@ public class ModelAnimationDebug
             // TODO Auto-generated method stub
         }
 
-        public AnimationStateMachine asm()
+        public IAnimationStateMachine asm()
         {
             return asm;
         }

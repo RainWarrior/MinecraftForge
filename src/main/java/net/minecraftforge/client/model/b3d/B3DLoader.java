@@ -55,6 +55,7 @@ import net.minecraftforge.client.model.pipeline.LightUtil;
 import net.minecraftforge.client.model.pipeline.UnpackedBakedQuad;
 import net.minecraftforge.common.property.IExtendedBlockState;
 import net.minecraftforge.common.property.IUnlistedProperty;
+import net.minecraftforge.common.property.Properties;
 import net.minecraftforge.fml.common.FMLLog;
 
 import org.apache.commons.lang3.tuple.Pair;
@@ -1002,7 +1003,7 @@ public class B3DLoader implements ICustomModelLoader
                         return new BakedWrapper(node, newState, format, meshes, textures);
                     }
                 }
-                else if(exState.getUnlistedNames().contains(net.minecraftforge.client.model.animation.Animation.AnimationProperty))
+                else if(exState.getUnlistedNames().contains(Properties.AnimationProperty))
                 {
                     // FIXME: should animation state handle the parent state, or should it remain here?
                     IModelState parent = this.state;
@@ -1011,7 +1012,7 @@ public class B3DLoader implements ICustomModelLoader
                         B3DState ps = (B3DState)parent;
                         parent = ps.getParent();
                     }
-                    IModelState newState = exState.getValue(net.minecraftforge.client.model.animation.Animation.AnimationProperty);
+                    IModelState newState = exState.getValue(Properties.AnimationProperty);
                     if(newState != null)
                     {
                         return new BakedWrapper(node, new ModelStateComposition(parent, newState), format, meshes, textures);

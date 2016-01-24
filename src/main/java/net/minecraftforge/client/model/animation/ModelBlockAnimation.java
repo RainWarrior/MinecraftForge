@@ -96,11 +96,6 @@ public class ModelBlockAnimation
         private final ImmutableMap<String, String> eventsRaw;
         private transient TreeMap<Float, Event> events;
 
-        protected MBClip()
-        {
-            this(false, ImmutableMap.<String, ImmutableList<MBVariableClip>>of(), ImmutableMap.<String, String>of());
-        }
-
         public MBClip(boolean loop, ImmutableMap<String, ImmutableList<MBVariableClip>> clips, ImmutableMap<String, String> events)
         {
             this.loop = loop;
