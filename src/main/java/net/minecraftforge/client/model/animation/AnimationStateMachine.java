@@ -14,8 +14,7 @@ import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.Iterators;
-import com.google.common.collect.UnmodifiableIterator;
+import com.google.common.collect.Iterables;
 import com.google.gson.annotations.SerializedName;
 
 class AnimationStateMachine implements IAnimationStateMachine
@@ -27,16 +26,17 @@ class AnimationStateMachine implements IAnimationStateMachine
     @SerializedName("start_state")
     private final String startState;
 
+    private transient boolean shouldHandleSpecialEvents = true;
     private transient String currentStateName;
     private transient IClip currentState;
     private transient float lastPollTime = Float.NEGATIVE_INFINITY;
 
-    private static final LoadingCache<Triple<? extends IClip, Float, Float>, Pair<IModelState, UnmodifiableIterator<Event>>> clipCache = CacheBuilder.newBuilder()
+    private static final LoadingCache<Triple<? extends IClip, Float, Float>, Pair<IModelState, Iterable<Event>>> clipCache = CacheBuilder.newBuilder()
         .maximumSize(100)
         .expireAfterWrite(100, TimeUnit.MILLISECONDS)
-        .build(new CacheLoader<Triple<? extends IClip, Float, Float>, Pair<IModelState, UnmodifiableIterator<Event>>>()
+        .build(new CacheLoader<Triple<? extends IClip, Float, Float>, Pair<IModelState, Iterable<Event>>>()
         {
-            public Pair<IModelState, UnmodifiableIterator<Event>> load(Triple<? extends IClip, Float, Float> key) throws Exception
+            public Pair<IModelState, Iterable<Event>> load(Triple<? extends IClip, Float, Float> key) throws Exception
             {
                 return Clips.apply(key.getLeft(), key.getMiddle(), key.getRight());
             }
@@ -82,37 +82,39 @@ class AnimationStateMachine implements IAnimationStateMachine
         currentState = state;
     }
 
-    public Pair<IModelState, UnmodifiableIterator<Event>> apply(float time)
+    public Pair<IModelState, Iterable<Event>> apply(float time)
     {
         if(lastPollTime == Float.NEGATIVE_INFINITY)
         {
             lastPollTime = time;
         }
-        Pair<IModelState, UnmodifiableIterator<Event>> pair = clipCache.getUnchecked(Triple.of(currentState, lastPollTime, time));
+        Pair<IModelState, Iterable<Event>> pair = clipCache.getUnchecked(Triple.of(currentState, lastPollTime, time));
         lastPollTime = time;
-        ImmutableList<Event> events = ImmutableList.copyOf(pair.getRight());
         boolean shouldFilter = false;
-        for(Event event : events.reverse())
+        if(shouldHandleSpecialEvents)
         {
-            if(event.event().startsWith("!"))
+            for(Event event : ImmutableList.copyOf(pair.getRight()).reverse())
             {
-                shouldFilter = true;
-                if(event.event().startsWith("!transition:"))
+                if(event.event().startsWith("!"))
                 {
-                    String newState = event.event().substring("!transition:".length());
-                    transition(newState);
-                }
-                else
-                {
-                    System.out.println("Unknown special event \"" + event.event() + "\", ignoring");
+                    shouldFilter = true;
+                    if(event.event().startsWith("!transition:"))
+                    {
+                        String newState = event.event().substring("!transition:".length());
+                        transition(newState);
+                    }
+                    else
+                    {
+                        System.out.println("Unknown special event \"" + event.event() + "\", ignoring");
+                    }
                 }
             }
         }
         if(!shouldFilter)
         {
-            return Pair.of(pair.getLeft(), events.reverse().iterator());
+            return pair;
         }
-        return Pair.of(pair.getLeft(), Iterators.filter(pair.getRight(), new Predicate<Event>()
+        return Pair.of(pair.getLeft(), Iterables.filter(pair.getRight(), new Predicate<Event>()
         {
             public boolean apply(Event event)
             {
@@ -140,5 +142,10 @@ class AnimationStateMachine implements IAnimationStateMachine
     public String currentState()
     {
         return currentStateName;
+    }
+
+    public void shouldHandleSpecialEvents(boolean value)
+    {
+        shouldHandleSpecialEvents = true;
     }
 }

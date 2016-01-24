@@ -11,7 +11,6 @@ import net.minecraftforge.client.model.b3d.B3DModel.Key;
 import net.minecraftforge.client.model.b3d.B3DModel.Node;
 
 import com.google.common.collect.ImmutableSet;
-import com.google.common.collect.UnmodifiableIterator;
 
 // FIXME: is this fast enough?
 public enum B3DClip implements IClip
@@ -27,9 +26,9 @@ public enum B3DClip implements IClip
         return new NodeClip(((NodeJoint)joint).getNode());
     }
 
-    public UnmodifiableIterator<Event> pastEvents(float lastPollTime, float time)
+    public Iterable<Event> pastEvents(float lastPollTime, float time)
     {
-        return ImmutableSet.<Event>of().iterator();
+        return ImmutableSet.<Event>of();
     }
 
     protected static class NodeClip implements IJointClip

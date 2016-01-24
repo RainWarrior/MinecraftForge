@@ -23,11 +23,11 @@ import net.minecraftforge.client.model.pipeline.WorldRendererConsumer;
 import org.apache.commons.lang3.tuple.Pair;
 import org.lwjgl.opengl.GL11;
 
-import com.google.common.collect.UnmodifiableIterator;
-
 /**
  * ModelBase that works with the Forge model system and animations.
+ * Some quirks are still left, deprecated for the moment.
  */
+@Deprecated
 public class AnimationModelBase<T extends Entity & IAnimationProvider> extends ModelBase implements IEventHandler<T>
 {
     private final VertexLighterFlat lighter;
@@ -48,7 +48,7 @@ public class AnimationModelBase<T extends Entity & IAnimationProvider> extends M
             throw new ClassCastException("AnimationModelBase expects IAnimationProvider");
         }
 
-        Pair<IModelState, UnmodifiableIterator<Event>> pair = ((IAnimationProvider)entity).asm().apply(timeAlive / 20);
+        Pair<IModelState, Iterable<Event>> pair = ((IAnimationProvider)entity).asm().apply(timeAlive / 20);
         handleEvents((T)entity, timeAlive / 20, pair.getRight());
         IBakedModel bakedModel = model.bake(pair.getLeft(), DefaultVertexFormats.ITEM, ModelLoader.defaultTextureGetter());
 
@@ -104,5 +104,5 @@ public class AnimationModelBase<T extends Entity & IAnimationProvider> extends M
         RenderHelper.enableStandardItemLighting();
     }
 
-    public void handleEvents(T instance, float time, UnmodifiableIterator<Event> pastEvents) {}
+    public void handleEvents(T instance, float time, Iterable<Event> pastEvents) {}
 }

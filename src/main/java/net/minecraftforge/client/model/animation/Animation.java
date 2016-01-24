@@ -28,7 +28,7 @@ public enum Animation implements IResourceManagerReloadListener
     INSTANCE;
 
     /**
-     * Get the global world time for the current tick.
+     * Get the global world time for the current tick, in seconds.
      */
     public static float getWorldTime(World world)
     {
@@ -36,7 +36,7 @@ public enum Animation implements IResourceManagerReloadListener
     }
 
     /**
-     * Get the global world time for the current tick + partial tick progress.
+     * Get the global world time for the current tick + partial tick progress, in seconds.
      */
     public static float getWorldTime(World world, float tickProgress)
     {

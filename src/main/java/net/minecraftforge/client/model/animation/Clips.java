@@ -20,9 +20,8 @@ import com.google.common.base.Function;
 import com.google.common.base.Objects;
 import com.google.common.base.Optional;
 import com.google.common.collect.ImmutableSet;
-import com.google.common.collect.Iterators;
+import com.google.common.collect.Iterables;
 import com.google.common.collect.Ordering;
-import com.google.common.collect.UnmodifiableIterator;
 import com.google.gson.Gson;
 import com.google.gson.TypeAdapter;
 import com.google.gson.TypeAdapterFactory;
@@ -47,9 +46,9 @@ public final class Clips
             return JointClips.IdentityJointClip.instance;
         }
 
-        public UnmodifiableIterator<Event> pastEvents(float lastPollTime, float time)
+        public Iterable<Event> pastEvents(float lastPollTime, float time)
         {
-            return ImmutableSet.<Event>of().iterator();
+            return ImmutableSet.<Event>of();
         }
 
         public String getName()
@@ -106,7 +105,7 @@ public final class Clips
             return childClip.apply(joint);
         }
 
-        public UnmodifiableIterator<Event> pastEvents(float lastPollTime, float time)
+        public Iterable<Event> pastEvents(float lastPollTime, float time)
         {
             return childClip.pastEvents(lastPollTime, time);
         }
@@ -157,7 +156,7 @@ public final class Clips
             };
         }
 
-        public UnmodifiableIterator<Event> pastEvents(float lastPollTime, float time)
+        public Iterable<Event> pastEvents(float lastPollTime, float time)
         {
             return childClip.pastEvents(this.time.apply(lastPollTime), this.time.apply(time));
         }
@@ -207,11 +206,11 @@ public final class Clips
             return blendClips(joint, fromClip, toClip, input, progress);
         }
 
-        public UnmodifiableIterator<Event> pastEvents(float lastPollTime, float time)
+        public Iterable<Event> pastEvents(float lastPollTime, float time)
         {
             float clipLastPollTime = input.apply(lastPollTime);
             float clipTime = input.apply(time);
-            return Iterators.mergeSorted(ImmutableSet.of(
+            return Iterables.mergeSorted(ImmutableSet.of(
                 from.pastEvents(clipLastPollTime, clipTime),
                 to.pastEvents(clipLastPollTime, clipTime)
             ), Ordering.<Event>natural());
@@ -274,9 +273,9 @@ public final class Clips
     /**
      * IModelState wrapper for a Clip, sampled at specified time.
      */
-    public static Pair<IModelState, UnmodifiableIterator<Event>> apply(final IClip clip, final float lastPollTime, final float time)
+    public static Pair<IModelState, Iterable<Event>> apply(final IClip clip, final float lastPollTime, final float time)
     {
-        return Pair.<IModelState, UnmodifiableIterator<Event>>of(new IModelState()
+        return Pair.<IModelState, Iterable<Event>>of(new IModelState()
         {
             public Optional<TRSRTransformation> apply(Optional<? extends IModelPart> part)
             {
@@ -315,13 +314,13 @@ public final class Clips
             return clip.apply(joint);
         }
 
-        public UnmodifiableIterator<Event> pastEvents(float lastPollTime, float time)
+        public Iterable<Event> pastEvents(float lastPollTime, float time)
         {
             if(parameter.apply(lastPollTime) < 0 && parameter.apply(time) >= 0)
             {
-                return Iterators.mergeSorted(ImmutableSet.of(
+                return Iterables.mergeSorted(ImmutableSet.of(
                     clip.pastEvents(lastPollTime, time),
-                    ImmutableSet.of(new Event(event, 0)).iterator()
+                    ImmutableSet.of(new Event(event, 0))
                 ), Ordering.<Event>natural());
             }
             return clip.pastEvents(lastPollTime, time);
@@ -365,7 +364,7 @@ public final class Clips
             return clip.apply(joint);
         }
 
-        public UnmodifiableIterator<Event> pastEvents(float lastPollTime, float time)
+        public Iterable<Event> pastEvents(float lastPollTime, float time)
         {
             resolve();
             return clip.pastEvents(lastPollTime, time);

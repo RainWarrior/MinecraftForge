@@ -59,7 +59,6 @@ import net.minecraftforge.fml.common.registry.GameRegistry;
 import org.apache.commons.lang3.tuple.Pair;
 
 import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.UnmodifiableIterator;
 
 @Mod(modid = ModelAnimationDebug.MODID, version = ModelAnimationDebug.VERSION)
 public class ModelAnimationDebug
@@ -179,7 +178,7 @@ public class ModelAnimationDebug
             ClientRegistry.bindTileEntitySpecialRenderer(Chest.class, new AnimationTESR<Chest>()
             {
                 @Override
-                public void handleEvents(Chest chest, float time, UnmodifiableIterator<Event> pastEvents)
+                public void handleEvents(Chest chest, float time, Iterable<Event> pastEvents)
                 {
                     chest.handleEvents(time, pastEvents);
                 }
@@ -229,7 +228,7 @@ public class ModelAnimationDebug
                         return new RenderLiving<EntityChest>(manager, new AnimationModelBase<EntityChest>(model, new VertexLighterSmoothAo())
                             {
                                 @Override
-                                public void handleEvents(EntityChest chest, float time, UnmodifiableIterator<Event> pastEvents)
+                                public void handleEvents(EntityChest chest, float time, Iterable<Event> pastEvents)
                                 {
                                     chest.handleEvents(time, pastEvents);
                                 }
@@ -259,7 +258,7 @@ public class ModelAnimationDebug
     @EventHandler
     public void preInit(FMLPreInitializationEvent event) { proxy.preInit(event); }
 
-    private static class Chest extends TileEntity implements IAnimationProvider
+    public static class Chest extends TileEntity implements IAnimationProvider
     {
         private final IAnimationStateMachine asm;
         private final VariableValue cycleLength = new VariableValue(4);
@@ -272,11 +271,10 @@ public class ModelAnimationDebug
             ));
         }
 
-        public void handleEvents(float time, UnmodifiableIterator<Event> pastEvents)
+        public void handleEvents(float time, Iterable<Event> pastEvents)
         {
-            while(pastEvents.hasNext())
+            for(Event event : pastEvents)
             {
-                Event event = pastEvents.next();
                 System.out.println("Event: " + event.event() + " " + event.offset() + " " + getPos() + " " + time);
             }
         }
@@ -318,21 +316,25 @@ public class ModelAnimationDebug
         }
     }
 
-    private static class EntityChest extends EntityLiving implements IAnimationProvider
+    public static class EntityChest extends EntityLiving implements IAnimationProvider
     {
         private final IAnimationStateMachine asm;
-        private final VariableValue cycleLength = new VariableValue(4);
+        private VariableValue cycleLength;
 
         public EntityChest(World world)
         {
             super(world);
             setSize(1, 1);
+            if(cycleLength == null)
+            {
+                cycleLength = new VariableValue(getHealth() / 5);
+            }
             asm = proxy.load(new ResourceLocation(MODID.toLowerCase(), "asms/block/engine.json"), ImmutableMap.<String, ITimeValue>of(
                 "cycle_length", cycleLength
             ));
         }
 
-        public void handleEvents(float time, UnmodifiableIterator<Event> pastEvents)
+        public void handleEvents(float time, Iterable<Event> pastEvents)
         {
             // TODO Auto-generated method stub
         }
@@ -348,6 +350,10 @@ public class ModelAnimationDebug
             super.onDataWatcherUpdate(id);
             if(id == 6) // health
             {
+                if(cycleLength == null)
+                {
+                    cycleLength = new VariableValue(0);
+                }
                 cycleLength.setValue(getHealth() / 5);
             }
         }
