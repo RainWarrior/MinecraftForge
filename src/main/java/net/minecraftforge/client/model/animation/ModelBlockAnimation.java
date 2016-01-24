@@ -133,7 +133,6 @@ public class ModelBlockAnimation
                     {
                         offset = 1 - (1 - offset) % 1;
                     }
-                    System.out.println("Event: " + new Event(eventsRaw.get(entry.getValue()), offset));
                     events.put(time, new Event(eventsRaw.get(entry.getValue()), offset));
                 }
             }

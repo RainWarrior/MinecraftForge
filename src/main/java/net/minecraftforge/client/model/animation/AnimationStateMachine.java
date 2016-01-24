@@ -15,6 +15,7 @@ import com.google.common.cache.LoadingCache;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
+import com.google.gson.JsonParseException;
 import com.google.gson.annotations.SerializedName;
 
 class AnimationStateMachine implements IAnimationStateMachine
@@ -72,6 +73,22 @@ class AnimationStateMachine implements IAnimationStateMachine
      */
     void initialize()
     {
+        if(parameters == null)
+        {
+            throw new JsonParseException("Animation State Machine should contain \"parameters\" key.");
+        }
+        if(clips == null)
+        {
+            throw new JsonParseException("Animation State Machine should contain \"clips\" key.");
+        }
+        if(states == null)
+        {
+            throw new JsonParseException("Animation State Machine should contain \"states\" key.");
+        }
+        if(transitions == null)
+        {
+            throw new JsonParseException("Animation State Machine should contain \"transitions\" key.");
+        }
         shouldHandleSpecialEvents = true;
         lastPollTime = Float.NEGATIVE_INFINITY;
         // setting the starting state

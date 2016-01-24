@@ -44,6 +44,7 @@ import com.google.common.collect.Table;
 public class B3DModel
 {
     static final Logger logger = LogManager.getLogger(B3DModel.class);
+    private static final boolean printLoadedModels = "true".equals(System.getProperty("b3dloader.printLoadedModels"));
     private final List<Texture> textures;
     private final List<Brush> brushes;
     private final Node<?> root;
@@ -92,7 +93,10 @@ public class B3DModel
         private String dump = "";
         private void dump(String str)
         {
-            dump += str + "\n";
+            if(printLoadedModels)
+            {
+                dump += str + "\n";
+            }
         }
 
         private B3DModel res;
@@ -103,7 +107,10 @@ public class B3DModel
             dump = "\n";
             readHeader();
             res = bb3d();
-            logger.info(dump);
+            if(printLoadedModels)
+            {
+                logger.info(dump);
+            }
             return res;
         }
 

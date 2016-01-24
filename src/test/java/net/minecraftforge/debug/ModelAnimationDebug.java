@@ -263,6 +263,7 @@ public class ModelAnimationDebug
         private final IAnimationStateMachine asm;
         private final VariableValue cycleLength = new VariableValue(4);
         private final VariableValue clickTime = new VariableValue(Float.NEGATIVE_INFINITY);
+        //private final VariableValue offset = new VariableValue(0);
 
         public Chest() {
             /*asm = proxy.load(new ResourceLocation(MODID.toLowerCase(), "asms/block/chest.json"), ImmutableMap.<String, ITimeValue>of(
@@ -271,6 +272,7 @@ public class ModelAnimationDebug
             asm = proxy.load(new ResourceLocation(MODID.toLowerCase(), "asms/block/engine.json"), ImmutableMap.<String, ITimeValue>of(
                 "cycle_length", cycleLength,
                 "click_time", clickTime
+                //"offset", offset
             ));
         }
 
@@ -312,7 +314,10 @@ public class ModelAnimationDebug
                 }*/
                 else if(asm.currentState().equals("default"))
                 {
-                    clickTime.setValue(Animation.getWorldTime(getWorld()));
+                    float time = Animation.getWorldTime(getWorld());
+                    clickTime.setValue(time);
+                    //offset.setValue(time);
+                    //asm.transition("moving");
                     asm.transition("starting");
                 }
                 else if(asm.currentState().equals("moving"))

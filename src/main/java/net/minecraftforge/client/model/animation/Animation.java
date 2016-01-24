@@ -99,7 +99,6 @@ public enum Animation implements IResourceManagerReloadListener
             }
             ModelBlockAnimation mba = mbaGson.fromJson(new InputStreamReader(resource.getInputStream(), StandardCharsets.UTF_8), ModelBlockAnimation.class);
             String json = mbaGson.toJson(mba);
-            System.out.println(armatureLocation + ": " + json);
             return mba;
         }
         catch(IOException e)
