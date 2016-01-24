@@ -8,7 +8,7 @@
             "chamber": "blocks/redstone_block",
             "trunk": "blocks/end_stone"
         }/*,
-        "model": "forgedebugmodelloaderregistry:chest.b3d"
+        "model": "forgedebugmodelloaderregistry:chest.b3d",
         "custom": {
             "mesh": ["Base", "Lid"]
         }*/
@@ -41,13 +41,13 @@
             "true": {
                 /*"custom": {
                     "mesh": ["Base"]
-                },*/
+                }*/
                 "model": "forgedebugmodelanimation:engine"
             },
             "false": {
                 /*"custom": {
                     "mesh": ["Lid"]
-                },*/
+                }*/
                 "model": "forgedebugmodelanimation:engine_ring"
             }
         }

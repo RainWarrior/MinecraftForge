@@ -26,10 +26,10 @@ class AnimationStateMachine implements IAnimationStateMachine
     @SerializedName("start_state")
     private final String startState;
 
-    private transient boolean shouldHandleSpecialEvents = true;
+    private transient boolean shouldHandleSpecialEvents;
     private transient String currentStateName;
     private transient IClip currentState;
-    private transient float lastPollTime = Float.NEGATIVE_INFINITY;
+    private transient float lastPollTime;
 
     private static final LoadingCache<Triple<? extends IClip, Float, Float>, Pair<IModelState, Iterable<Event>>> clipCache = CacheBuilder.newBuilder()
         .maximumSize(100)
@@ -72,6 +72,8 @@ class AnimationStateMachine implements IAnimationStateMachine
      */
     void initialize()
     {
+        shouldHandleSpecialEvents = true;
+        lastPollTime = Float.NEGATIVE_INFINITY;
         // setting the starting state
         IClip state = clips.get(startState);
         if(!clips.containsKey(startState) || !states.contains(startState))
@@ -125,7 +127,6 @@ class AnimationStateMachine implements IAnimationStateMachine
 
     public void transition(String newState)
     {
-        System.out.println("transition " + newState);
         IClip nc = clips.get(newState);
         if(!clips.containsKey(newState) || !states.contains(newState))
         {
@@ -133,7 +134,7 @@ class AnimationStateMachine implements IAnimationStateMachine
         }
         if(!transitions.get(currentStateName).equals(newState))
         {
-            throw new IllegalArgumentException("no transition from current clip to the clip " + newState + " found.");
+            throw new IllegalArgumentException("no transition from current clip \"" + currentStateName + "\" to the clip \"" + newState + "\" found.");
         }
         currentStateName = newState;
         currentState = nc;

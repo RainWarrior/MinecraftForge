@@ -78,28 +78,6 @@ public enum Animation implements IResourceManagerReloadListener
             Clips.CommonClipTypeAdapterFactory.INSTANCE.setClipResolver(null);
             TimeValues.CommonTimeValueTypeAdapterFactory.INSTANCE.setValueResolver(null);
         }
-
-        /*if(location.equals(new ResourceLocation("forgedebugmodelanimation", "asms/block/chest.json")))
-        {
-            IClip b3d = Clips.getModelClipNode(new ResourceLocation("forgedebugmodelloaderregistry", "block/chest.b3d"), "main");
-            IClip closed = new Clips.TimeClip(b3d, new TimeValues.ConstValue(0));
-            IClip open = new Clips.TimeClip(b3d, new TimeValues.ConstValue(10));
-            IClipProvider c2o = new ClipProviders.ClipSlerpProvider(closed, open, TimeValues.IdentityValue.instance, 1);
-            IClipProvider o2c = new ClipProviders.ClipSlerpProvider(open, closed, TimeValues.IdentityValue.instance, 1);
-
-            ImmutableTable.Builder<String, String, IClipProvider> builder = ImmutableTable.builder();
-            builder.put("closed", "open", c2o);
-            builder.put("open", "closed", o2c);
-
-            AnimationStateMachine afsm = new AnimationStateMachine(
-                ImmutableMap.of("closed", closed, "open", open),
-                ImmutableList.of("closed", "open"),
-                builder.build(),
-                "closed"
-            );
-            afsm.initialize();
-            return afsm;
-        }*/
     }
 
     /**

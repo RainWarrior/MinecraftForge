@@ -265,6 +265,9 @@ public class ModelAnimationDebug
         private final VariableValue clickTime = new VariableValue(Float.NEGATIVE_INFINITY);
 
         public Chest() {
+            /*asm = proxy.load(new ResourceLocation(MODID.toLowerCase(), "asms/block/chest.json"), ImmutableMap.<String, ITimeValue>of(
+                "click_time", clickTime
+            ));*/
             asm = proxy.load(new ResourceLocation(MODID.toLowerCase(), "asms/block/engine.json"), ImmutableMap.<String, ITimeValue>of(
                 "cycle_length", cycleLength,
                 "click_time", clickTime
@@ -297,6 +300,16 @@ public class ModelAnimationDebug
                 {
                     cycleLength.setValue(6 - cycleLength.apply(0));
                 }
+                /*else if(asm.currentState().equals("closed"))
+                {
+                    clickTime.setValue(Animation.getWorldTime(getWorld()));
+                    asm.transition("opening");
+                }
+                else if(asm.currentState().equals("open"))
+                {
+                    clickTime.setValue(Animation.getWorldTime(getWorld()));
+                    asm.transition("closing");
+                }*/
                 else if(asm.currentState().equals("default"))
                 {
                     clickTime.setValue(Animation.getWorldTime(getWorld()));
