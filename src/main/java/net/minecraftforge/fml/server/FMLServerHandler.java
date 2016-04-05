@@ -12,31 +12,35 @@
  */
 package net.minecraftforge.fml.server;
 
-import java.io.File;
+import java.io.*;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
+import com.google.common.base.Charsets;
+import com.google.common.collect.*;
+import net.minecraft.client.resources.*;
+import net.minecraft.client.resources.data.*;
 import net.minecraft.command.ServerCommand;
+import net.minecraft.launchwrapper.Launch;
 import net.minecraft.network.INetHandler;
 import net.minecraft.network.NetHandlerPlayServer;
 import net.minecraft.network.NetworkManager;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.dedicated.DedicatedServer;
 import net.minecraft.util.IThreadListener;
+import net.minecraft.util.ResourceLocation;
 import net.minecraft.world.storage.SaveFormatOld;
 import net.minecraftforge.fml.common.FMLCommonHandler;
 import net.minecraftforge.fml.common.FMLLog;
 import net.minecraftforge.fml.common.IFMLSidedHandler;
 import net.minecraftforge.fml.common.Loader;
-import net.minecraftforge.fml.common.ModContainer;
 import net.minecraftforge.fml.common.StartupQuery;
 import net.minecraftforge.fml.common.eventhandler.EventBus;
 import net.minecraftforge.fml.common.functions.GenericIterableFactory;
 import net.minecraftforge.fml.common.network.FMLNetworkEvent;
 import net.minecraftforge.fml.relauncher.Side;
-
-import com.google.common.collect.ImmutableList;
 
 /**
  * Handles primary communication from hooked code into the system
@@ -69,9 +73,130 @@ public class FMLServerHandler implements IFMLSidedHandler
      */
     private MinecraftServer server;
 
+    private static class ServerResourceManager implements IResourceManager
+    {
+        private final ImmutableMap<String, IResourcePack> packMap;
+        private final IMetadataSerializer metadataSerializer;
+
+        public ServerResourceManager(IMetadataSerializer metadataSerializer, List<IResourcePack> resourcePacks)
+        {
+            this.metadataSerializer = metadataSerializer;
+            Map<String, IResourcePack> packMap = Maps.newHashMap();
+            for (IResourcePack pack : resourcePacks)
+            {
+                for (String domain : pack.getResourceDomains())
+                {
+                    if (packMap.containsKey(domain))
+                    {
+                        throw new IllegalStateException("2 resourcepacks " + pack.getPackName() + " and " + packMap.get(domain).getPackName() + " have the same domain " + domain);
+                    }
+                    packMap.put(domain, pack);
+                }
+            }
+            this.packMap = ImmutableMap.copyOf(packMap);
+        }
+
+        @Override
+        public Set<String> getResourceDomains()
+        {
+            return packMap.keySet();
+        }
+
+        @Override
+        public IResource getResource(ResourceLocation location) throws IOException
+        {
+            checkResourcePath(location);
+            IResourcePack pack = packMap.get(location.getResourceDomain());
+            ResourceLocation metaLocation = new ResourceLocation(location.getResourceDomain(), location.getResourcePath() + ".mcmeta");
+            if (pack != null)
+            {
+                // TODO: InputStreamLeakedResourceLogger?
+                InputStream metaStream = null;
+                if(pack.resourceExists(metaLocation))
+                {
+                    metaStream = pack.getInputStream(metaLocation);
+                }
+                return new SimpleResource(pack.getPackName(), location, pack.getInputStream(location), metaStream, this.metadataSerializer);
+            }
+            throw new FileNotFoundException();
+        }
+
+        @Override
+        public List<IResource> getAllResources(ResourceLocation location) throws IOException
+        {
+            return ImmutableList.of(getResource(location));
+        }
+
+        private void checkResourcePath(ResourceLocation location) throws IOException
+        {
+            if (location.getResourcePath().contains(".."))
+            {
+                throw new IOException("Invalid relative path to resource: " + location);
+            }
+        }
+    }
+
+    private static class DefaultServerResourcePack extends DefaultResourcePack
+    {
+        public DefaultServerResourcePack()
+        {
+            super(new ResourceIndex()
+            {
+                @Override
+                public File getFile(ResourceLocation location)
+                {
+                    return null;
+                }
+
+                @Override
+                public boolean isFileExisting(ResourceLocation location)
+                {
+                    return false;
+                }
+
+                @Override
+                public File getPackMcmeta()
+                {
+                    return null;
+                }
+            });
+        }
+
+        @Override
+        public InputStream getPackMcmetaResourceStream() throws FileNotFoundException
+        {
+            return new ByteArrayInputStream(("{\n" +
+                    " \"pack\": {\n"+
+                    "  \"description\": \"Default Server resource pack.\",\n"+
+                    "  \"pack_format\": 2\n"+
+                    " },\n" +
+                    " \"language\": {\n" +
+                    "  \"en_US\": {\n" +
+                    "   \"name\": \"en\",\n" +
+                    "   \"region\": \"United States of America\",\n" +
+                    "   \"bidirectional\": false\n" +
+                    "  }\n" +
+                    " }\n" +
+                    "}").getBytes(Charsets.UTF_8));
+        }
+    }
+    private final IResourcePack defaultResourcePack = new DefaultServerResourcePack();
+    private List<IResourcePack> resourcePacks;
+    private IMetadataSerializer metadataSerializer = new IMetadataSerializer();
+    private ServerResourceManager serverResourceManager;
+    private LanguageManager languageManager;
+
     private FMLServerHandler()
     {
-        FMLCommonHandler.instance().beginLoading(this);
+        if((Boolean)Launch.blackboard.get("fml.deobfuscatedEnvironment"))
+        {
+            resourcePacks = Lists.newArrayList();
+        }
+        else
+        {
+            resourcePacks = Lists.newArrayList(defaultResourcePack);
+        }
+        FMLCommonHandler.instance().beginLoading(this, resourcePacks);
     }
     /**
      * Called to start the whole game off from
@@ -93,6 +218,12 @@ public class FMLServerHandler implements IFMLSidedHandler
     @Override
     public void finishServerLoading()
     {
+        metadataSerializer.registerMetadataSectionType(new PackMetadataSectionSerializer(), PackMetadataSection.class);
+        metadataSerializer.registerMetadataSectionType(new LanguageMetadataSectionSerializer(), LanguageMetadataSection.class);
+        serverResourceManager = new ServerResourceManager(metadataSerializer, resourcePacks);
+        languageManager = new LanguageManager(metadataSerializer, "en_US"); // TODO: switch languages?
+        languageManager.onResourceManagerReload(serverResourceManager);
+        languageManager.parseLanguageMetadata(resourcePacks);
         Loader.instance().initializeMods();
     }
 
@@ -115,6 +246,18 @@ public class FMLServerHandler implements IFMLSidedHandler
     public MinecraftServer getServer()
     {
         return server;
+    }
+
+    @Override
+    public IResourceManager getResourceManager()
+    {
+        return serverResourceManager;
+    }
+
+    @Override
+    public LanguageManager getLanguageManager()
+    {
+        return languageManager;
     }
 
     /**
@@ -213,12 +356,6 @@ public class FMLServerHandler implements IFMLSidedHandler
     public boolean shouldServerShouldBeKilledQuietly()
     {
         return false;
-    }
-
-    @Override
-    public void addModAsResource(ModContainer container)
-    {
-        // NOOP
     }
 
     @Override

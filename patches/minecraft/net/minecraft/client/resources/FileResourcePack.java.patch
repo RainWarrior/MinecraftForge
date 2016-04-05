@@ -1,0 +1,13 @@
+--- ../src-base/minecraft/net/minecraft/client/resources/FileResourcePack.java
++++ ../src-work/minecraft/net/minecraft/client/resources/FileResourcePack.java
+@@ -13,10 +13,7 @@
+ import java.util.Set;
+ import java.util.zip.ZipEntry;
+ import java.util.zip.ZipFile;
+-import net.minecraftforge.fml.relauncher.Side;
+-import net.minecraftforge.fml.relauncher.SideOnly;
+ 
+-@SideOnly(Side.CLIENT)
+ public class FileResourcePack extends AbstractResourcePack implements Closeable
+ {
+     public static final Splitter field_110601_c = Splitter.on('/').omitEmptyStrings().limit(3);

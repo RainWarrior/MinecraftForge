@@ -1,6 +1,14 @@
 --- ../src-base/minecraft/net/minecraft/client/resources/AbstractResourcePack.java
 +++ ../src-work/minecraft/net/minecraft/client/resources/AbstractResourcePack.java
-@@ -58,7 +58,7 @@
+@@ -21,7 +21,6 @@
+ import org.apache.logging.log4j.LogManager;
+ import org.apache.logging.log4j.Logger;
+ 
+-@SideOnly(Side.CLIENT)
+ public abstract class AbstractResourcePack implements IResourcePack
+ {
+     private static final Logger field_110598_a = LogManager.getLogger();
+@@ -58,7 +57,7 @@
  
      protected void func_110594_c(String p_110594_1_)
      {
@@ -9,3 +17,11 @@
      }
  
      public <T extends IMetadataSection> T func_135058_a(IMetadataSerializer p_135058_1_, String p_135058_2_) throws IOException
+@@ -88,6 +87,7 @@
+         return p_110596_0_.func_110503_a(p_110596_2_, jsonobject);
+     }
+ 
++    @SideOnly(Side.CLIENT)
+     public BufferedImage func_110586_a() throws IOException
+     {
+         return TextureUtil.func_177053_a(this.func_110591_a("pack.png"));

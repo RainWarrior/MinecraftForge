@@ -52,3 +52,12 @@
      }
  
      static LanguageMap func_74808_a()
+@@ -55,8 +76,6 @@
+         return field_74817_a;
+     }
+ 
+-    @SideOnly(Side.CLIENT)
+-
+     public static synchronized void func_135063_a(Map<String, String> p_135063_0_)
+     {
+         field_74817_a.field_74816_c.clear();

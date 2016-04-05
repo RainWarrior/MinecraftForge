@@ -48,6 +48,7 @@ import net.minecraftforge.common.ForgeHooks;
 import net.minecraftforge.common.ForgeVersion;
 import net.minecraftforge.common.ForgeVersion.CheckResult;
 import net.minecraftforge.common.ForgeVersion.Status;
+import net.minecraftforge.fml.common.FMLCommonHandler;
 import net.minecraftforge.fml.common.FMLLog;
 import net.minecraftforge.fml.common.Loader;
 import net.minecraftforge.fml.common.ModContainer;
@@ -355,7 +356,7 @@ public class GuiModList extends GuiScreen
         if (!logoFile.isEmpty())
         {
             TextureManager tm = mc.getTextureManager();
-            IResourcePack pack = FMLClientHandler.instance().getResourcePackFor(selectedMod.getModId());
+            IResourcePack pack = FMLCommonHandler.instance().getResourcePackFor(selectedMod.getModId());
             try
             {
                 BufferedImage logo = null;

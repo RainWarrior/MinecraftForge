@@ -1,0 +1,21 @@
+--- ../src-base/minecraft/net/minecraft/client/resources/data/IMetadataSerializer.java
++++ ../src-work/minecraft/net/minecraft/client/resources/data/IMetadataSerializer.java
+@@ -9,10 +9,7 @@
+ import net.minecraft.util.registry.RegistrySimple;
+ import net.minecraft.util.text.ITextComponent;
+ import net.minecraft.util.text.Style;
+-import net.minecraftforge.fml.relauncher.Side;
+-import net.minecraftforge.fml.relauncher.SideOnly;
+ 
+-@SideOnly(Side.CLIENT)
+ public class IMetadataSerializer
+ {
+     private final IRegistry < String, IMetadataSerializer.Registration <? extends IMetadataSection >> field_110508_a = new RegistrySimple();
+@@ -72,7 +69,6 @@
+         return this.field_110507_c;
+     }
+ 
+-    @SideOnly(Side.CLIENT)
+     class Registration<T extends IMetadataSection>
+     {
+         final IMetadataSectionSerializer<T> field_110502_a;

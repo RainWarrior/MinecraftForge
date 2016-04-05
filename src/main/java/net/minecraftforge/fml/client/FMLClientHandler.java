@@ -41,11 +41,7 @@ import net.minecraft.client.multiplayer.WorldClient;
 import net.minecraft.client.network.NetHandlerPlayClient;
 import net.minecraft.client.network.ServerPinger;
 import net.minecraft.client.renderer.GlStateManager;
-import net.minecraft.client.resources.AbstractResourcePack;
-import net.minecraft.client.resources.FallbackResourceManager;
-import net.minecraft.client.resources.IReloadableResourceManager;
-import net.minecraft.client.resources.IResourcePack;
-import net.minecraft.client.resources.SimpleReloadableResourceManager;
+import net.minecraft.client.resources.*;
 import net.minecraft.crash.CrashReport;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.launchwrapper.Launch;
@@ -166,10 +162,6 @@ public class FMLClientHandler implements IFMLSidedHandler
 
     private boolean serverShouldBeKilledQuietly;
 
-    private List<IResourcePack> resourcePackList;
-
-    private Map<String, IResourcePack> resourcePackMap;
-
     private BiMap<ModContainer, IModGuiFactory> guiFactories;
 
     private Map<ServerStatusResponse,JsonObject> extraServerListData;
@@ -190,8 +182,6 @@ public class FMLClientHandler implements IFMLSidedHandler
         detectOptifine();
         SplashProgress.start();
         client = minecraft;
-        this.resourcePackList = resourcePackList;
-        this.resourcePackMap = Maps.newHashMap();
         if (minecraft.isDemo())
         {
             FMLLog.severe("DEMO MODE DETECTED, FML will not work. Finishing now.");
@@ -199,7 +189,7 @@ public class FMLClientHandler implements IFMLSidedHandler
             return;
         }
 
-        FMLCommonHandler.instance().beginLoading(this);
+        FMLCommonHandler.instance().beginLoading(this, resourcePackList);
         try
         {
             Loader.instance().loadMods();
@@ -444,6 +434,18 @@ public class FMLClientHandler implements IFMLSidedHandler
     }
 
     @Override
+    public IResourceManager getResourceManager()
+    {
+        return client.getResourceManager();
+    }
+
+    @Override
+    public LanguageManager getLanguageManager()
+    {
+        return client.getLanguageManager();
+    }
+
+    @Override
     public List<String> getAdditionalBrandingInformation()
     {
         if (optifineContainer!=null)
@@ -584,36 +586,6 @@ public class FMLClientHandler implements IFMLSidedHandler
         return client.currentScreen != null && client.currentScreen.getClass().equals(gui);
     }
 
-
-    @Override
-    public void addModAsResource(ModContainer container)
-    {
-        Class<?> resourcePackType = container.getCustomResourcePackClass();
-        if (resourcePackType != null)
-        {
-            try
-            {
-                IResourcePack pack = (IResourcePack) resourcePackType.getConstructor(ModContainer.class).newInstance(container);
-                resourcePackList.add(pack);
-                resourcePackMap.put(container.getModId(), pack);
-            }
-            catch (NoSuchMethodException e)
-            {
-                FMLLog.log(Level.ERROR, "The container %s (type %s) returned an invalid class for it's resource pack.", container.getName(), container.getClass().getName());
-                return;
-            }
-            catch (Exception e)
-            {
-                FMLLog.log(Level.ERROR, e, "An unexpected exception occurred constructing the custom resource pack for %s", container.getName());
-                throw Throwables.propagate(e);
-            }
-        }
-    }
-
-    public IResourcePack getResourcePackFor(String modId)
-    {
-        return resourcePackMap.get(modId);
-    }
 
     @Override
     public String getCurrentLanguage()

@@ -27,6 +27,7 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
 
+import net.minecraft.launchwrapper.Launch;
 import net.minecraftforge.fml.common.Mod.Instance;
 import net.minecraftforge.fml.common.Mod.Metadata;
 import net.minecraftforge.fml.common.asm.transformers.BlamingTransformer;
@@ -615,6 +616,10 @@ public class FMLModContainer implements ModContainer
     @Override
     public Class<?> getCustomResourcePackClass()
     {
+        if((Boolean)Launch.blackboard.get("fml.deobfuscatedEnvironment") && FMLCommonHandler.instance().getSide() == Side.SERVER)
+        {
+            return null;
+        }
         try
         {
             return getSource().isDirectory() ? Class.forName("net.minecraftforge.fml.client.FMLFolderResourcePack", true, getClass().getClassLoader()) : Class.forName("net.minecraftforge.fml.client.FMLFileResourcePack", true, getClass().getClassLoader());

@@ -1,0 +1,15 @@
+--- ../src-base/minecraft/net/minecraft/client/resources/LanguageManager.java
++++ ../src-work/minecraft/net/minecraft/client/resources/LanguageManager.java
+@@ -10,12 +10,9 @@
+ import net.minecraft.client.resources.data.IMetadataSerializer;
+ import net.minecraft.client.resources.data.LanguageMetadataSection;
+ import net.minecraft.util.text.translation.LanguageMap;
+-import net.minecraftforge.fml.relauncher.Side;
+-import net.minecraftforge.fml.relauncher.SideOnly;
+ import org.apache.logging.log4j.LogManager;
+ import org.apache.logging.log4j.Logger;
+ 
+-@SideOnly(Side.CLIENT)
+ public class LanguageManager implements IResourceManagerReloadListener
+ {
+     private static final Logger field_147648_b = LogManager.getLogger();

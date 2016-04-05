@@ -1,0 +1,18 @@
+--- ../src-base/minecraft/net/minecraft/client/resources/IResourcePack.java
++++ ../src-work/minecraft/net/minecraft/client/resources/IResourcePack.java
+@@ -10,7 +10,6 @@
+ import net.minecraftforge.fml.relauncher.Side;
+ import net.minecraftforge.fml.relauncher.SideOnly;
+ 
+-@SideOnly(Side.CLIENT)
+ public interface IResourcePack
+ {
+     InputStream func_110590_a(ResourceLocation p_110590_1_) throws IOException;
+@@ -21,6 +20,7 @@
+ 
+     <T extends IMetadataSection> T func_135058_a(IMetadataSerializer p_135058_1_, String p_135058_2_) throws IOException;
+ 
++    @SideOnly(Side.CLIENT)
+     BufferedImage func_110586_a() throws IOException;
+ 
+     String func_130077_b();

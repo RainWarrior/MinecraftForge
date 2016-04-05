@@ -5,6 +5,8 @@ import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 
+import net.minecraftforge.fml.relauncher.Side;
+import net.minecraftforge.fml.relauncher.SideOnly;
 import org.apache.logging.log4j.Level;
 
 import javax.imageio.ImageIO;
@@ -60,6 +62,7 @@ public class FMLFolderResourcePack extends FolderResourcePack implements FMLCont
     }
 
     @Override
+    @SideOnly(Side.CLIENT)
     public BufferedImage getPackImage() throws IOException
     {
         return ImageIO.read(getInputStreamByName(container.getMetadata().logoFile));

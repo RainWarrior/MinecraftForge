@@ -1,0 +1,12 @@
+--- ../src-base/minecraft/net/minecraft/client/resources/IResourceManagerReloadListener.java
++++ ../src-work/minecraft/net/minecraft/client/resources/IResourceManagerReloadListener.java
+@@ -1,9 +1,5 @@
+ package net.minecraft.client.resources;
+ 
+-import net.minecraftforge.fml.relauncher.Side;
+-import net.minecraftforge.fml.relauncher.SideOnly;
+-
+-@SideOnly(Side.CLIENT)
+ public interface IResourceManagerReloadListener
+ {
+     void func_110549_a(IResourceManager p_110549_1_);

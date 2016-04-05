@@ -28,6 +28,8 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.FutureTask;
 import java.util.concurrent.TimeUnit;
 
+import com.google.common.base.Throwables;
+import net.minecraft.client.resources.IResourcePack;
 import net.minecraft.crash.CrashReport;
 import net.minecraft.crash.CrashReportCategory;
 import net.minecraft.entity.item.EntityItem;
@@ -106,6 +108,8 @@ public class FMLCommonHandler
     private WeakReference<SaveHandler> handlerToCheck;
     private EventBus eventBus = MinecraftForge.EVENT_BUS;
     private volatile CountDownLatch exitLatch = null;
+    private List<IResourcePack> resourcePackList = Lists.newArrayList();
+    private final Map<String, IResourcePack> resourcePackMap = Maps.newHashMap();
 
     private FMLCommonHandler()
     {
@@ -140,9 +144,10 @@ public class FMLCommonHandler
         return eventBus;
     }
 
-    public void beginLoading(IFMLSidedHandler handler)
+    public void beginLoading(IFMLSidedHandler handler, List<IResourcePack> resourcePackList)
     {
         sidedDelegate = handler;
+        this.resourcePackList = resourcePackList;
         MinecraftForge.initialize();
 //        MinecraftForge.registerCrashCallable();
     }
@@ -519,7 +524,31 @@ public class FMLCommonHandler
 
     public void addModToResourcePack(ModContainer container)
     {
-        sidedDelegate.addModAsResource(container);
+        Class<?> resourcePackType = container.getCustomResourcePackClass();
+        if (resourcePackType != null)
+        {
+            try
+            {
+                IResourcePack pack = (IResourcePack) resourcePackType.getConstructor(ModContainer.class).newInstance(container);
+                resourcePackList.add(pack);
+                resourcePackMap.put(container.getModId(), pack);
+            }
+            catch (NoSuchMethodException e)
+            {
+                FMLLog.log(Level.ERROR, "The container %s (type %s) returned an invalid class for it's resource pack.", container.getName(), container.getClass().getName());
+                return;
+            }
+            catch (Exception e)
+            {
+                FMLLog.log(Level.ERROR, e, "An unexpected exception occurred constructing the custom resource pack for %s", container.getName());
+                throw Throwables.propagate(e);
+            }
+        }
+    }
+
+    public IResourcePack getResourcePackFor(String modId)
+    {
+        return resourcePackMap.get(modId);
     }
 
     public String getCurrentLanguage()

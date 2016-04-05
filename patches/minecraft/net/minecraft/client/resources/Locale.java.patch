@@ -1,6 +1,19 @@
 --- ../src-base/minecraft/net/minecraft/client/resources/Locale.java
 +++ ../src-work/minecraft/net/minecraft/client/resources/Locale.java
-@@ -95,6 +95,8 @@
+@@ -10,12 +10,9 @@
+ import java.util.Map;
+ import java.util.regex.Pattern;
+ import net.minecraft.util.ResourceLocation;
+-import net.minecraftforge.fml.relauncher.Side;
+-import net.minecraftforge.fml.relauncher.SideOnly;
+ import org.apache.commons.io.Charsets;
+ import org.apache.commons.io.IOUtils;
+ 
+-@SideOnly(Side.CLIENT)
+ public class Locale
+ {
+     private static final Splitter field_135030_b = Splitter.on('=').limit(2);
+@@ -95,6 +92,8 @@
  
      private void func_135021_a(InputStream p_135021_1_) throws IOException
      {

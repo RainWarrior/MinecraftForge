@@ -349,6 +349,11 @@ public final class FMLContainer extends DummyModContainer implements WorldAccess
     @Override
     public Class<?> getCustomResourcePackClass()
     {
+        if(FMLCommonHandler.instance().getSide() == Side.SERVER)
+        {
+            // Forge is our resource pack on the server.
+            return null;
+        }
         return getSource().isDirectory() ? FMLFolderResourcePack.class : FMLFileResourcePack.class;
     }
 

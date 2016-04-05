@@ -1,0 +1,14 @@
+--- ../src-base/minecraft/net/minecraft/client/resources/FolderResourcePack.java
++++ ../src-work/minecraft/net/minecraft/client/resources/FolderResourcePack.java
+@@ -8,11 +8,8 @@
+ import java.io.IOException;
+ import java.io.InputStream;
+ import java.util.Set;
+-import net.minecraftforge.fml.relauncher.Side;
+-import net.minecraftforge.fml.relauncher.SideOnly;
+ import org.apache.commons.io.filefilter.DirectoryFileFilter;
+ 
+-@SideOnly(Side.CLIENT)
+ public class FolderResourcePack extends AbstractResourcePack
+ {
+     public FolderResourcePack(File p_i1291_1_)

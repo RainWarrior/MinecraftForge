@@ -16,6 +16,8 @@ import java.io.File;
 import java.util.List;
 import java.util.Set;
 
+import net.minecraft.client.resources.IResourceManager;
+import net.minecraft.client.resources.LanguageManager;
 import net.minecraft.network.INetHandler;
 import net.minecraft.network.NetworkManager;
 import net.minecraft.server.MinecraftServer;
@@ -25,6 +27,10 @@ import net.minecraftforge.fml.relauncher.Side;
 
 public interface IFMLSidedHandler
 {
+    IResourceManager getResourceManager();
+
+    LanguageManager getLanguageManager();
+
     List<String> getAdditionalBrandingInformation();
 
     Side getSide();
@@ -44,8 +50,6 @@ public interface IFMLSidedHandler
     MinecraftServer getServer();
 
     boolean shouldServerShouldBeKilledQuietly();
-
-    void addModAsResource(ModContainer container);
 
     String getCurrentLanguage();
 

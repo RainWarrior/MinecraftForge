@@ -1,0 +1,37 @@
+--- ../src-base/minecraft/net/minecraft/client/resources/DefaultResourcePack.java
++++ ../src-work/minecraft/net/minecraft/client/resources/DefaultResourcePack.java
+@@ -15,7 +15,6 @@
+ import net.minecraftforge.fml.relauncher.Side;
+ import net.minecraftforge.fml.relauncher.SideOnly;
+ 
+-@SideOnly(Side.CLIENT)
+ public class DefaultResourcePack implements IResourcePack
+ {
+     public static final Set<String> field_110608_a = ImmutableSet.<String>of("minecraft", "realms");
+@@ -74,7 +73,7 @@
+     {
+         try
+         {
+-            InputStream inputstream = new FileInputStream(this.field_188549_b.func_188546_a());
++            InputStream inputstream = getPackMcmetaResourceStream();
+             return AbstractResourcePack.func_110596_a(p_135058_1_, inputstream, p_135058_2_);
+         }
+         catch (RuntimeException var4)
+@@ -87,6 +86,7 @@
+         }
+     }
+ 
++    @SideOnly(Side.CLIENT)
+     public BufferedImage func_110586_a() throws IOException
+     {
+         return TextureUtil.func_177053_a(DefaultResourcePack.class.getResourceAsStream("/" + (new ResourceLocation("pack.png")).func_110623_a()));
+@@ -96,4 +96,9 @@
+     {
+         return "Default";
+     }
++
++    public InputStream getPackMcmetaResourceStream() throws FileNotFoundException
++    {
++        return new FileInputStream(this.field_188549_b.func_188546_a());
++    }
+ }

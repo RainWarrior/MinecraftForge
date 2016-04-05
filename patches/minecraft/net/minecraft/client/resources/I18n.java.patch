@@ -1,0 +1,12 @@
+--- ../src-base/minecraft/net/minecraft/client/resources/I18n.java
++++ ../src-work/minecraft/net/minecraft/client/resources/I18n.java
+@@ -1,9 +1,5 @@
+ package net.minecraft.client.resources;
+ 
+-import net.minecraftforge.fml.relauncher.Side;
+-import net.minecraftforge.fml.relauncher.SideOnly;
+-
+-@SideOnly(Side.CLIENT)
+ public class I18n
+ {
+     private static Locale field_135054_a;

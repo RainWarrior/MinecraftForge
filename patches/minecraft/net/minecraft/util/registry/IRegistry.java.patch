@@ -1,0 +1,19 @@
+--- ../src-base/minecraft/net/minecraft/util/registry/IRegistry.java
++++ ../src-work/minecraft/net/minecraft/util/registry/IRegistry.java
+@@ -1,16 +1,12 @@
+ package net.minecraft.util.registry;
+ 
+ import java.util.Set;
+-import net.minecraftforge.fml.relauncher.Side;
+-import net.minecraftforge.fml.relauncher.SideOnly;
+ 
+ public interface IRegistry<K, V> extends Iterable<V>
+ {
+-    @SideOnly(Side.CLIENT)
+     V func_82594_a(K p_82594_1_);
+ 
+     void func_82595_a(K p_82595_1_, V p_82595_2_);
+ 
+-    @SideOnly(Side.CLIENT)
+     Set<K> func_148742_b();
+ }
